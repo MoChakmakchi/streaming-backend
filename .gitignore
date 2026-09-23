@@ -13,5 +13,9 @@ build/
 .env
 .env.local
 data/snapshots/
+*.exe
+*.test
+*.out
+vendor/
 .agents
 .specify

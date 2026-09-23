@@ -31,8 +31,10 @@ We will use a modular Go application with separate API and worker executables:
 │   ├── test/
 │   │   └── load/
 │   ├── Makefile                 # Submission development commands
-│   ├── compose.yaml
-│   ├── Dockerfile
+│   ├── deployment/              # Local container definitions
+│   │   ├── compose.yaml
+│   │   ├── Dockerfile.api       # API image
+│   │   └── Dockerfile.worker    # Worker image
 │   └── go.mod
 └── Makefile                     # Original assignment harness
 ```

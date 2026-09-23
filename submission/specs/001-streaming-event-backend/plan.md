@@ -2,7 +2,7 @@
 
 **Branch**: `001-streaming-event-backend` | **Date**: 2026-09-23 | **Spec**: [spec.md](./spec.md)
 
-**Input**: Feature specification from `specs/001-streaming-event-backend/spec.md`
+**Input**: Feature specification from `submission/specs/001-streaming-event-backend/spec.md`
 
 ## Summary
 
@@ -16,15 +16,15 @@ gate and work does not continue until the user confirms the result.
 
 ## Technical Context
 
-**Language/Version**: Go 1.27.1
+**Language/Version**: Go 1.27
 
-**Primary Dependencies**: Chi v5.2.4, pgx v5.11.0, River v0.47.0 with `riverpgxv5`; Go standard library for JSON, SSE, logging, and HTTP lifecycle
+**Primary Dependencies**: Chi v5, pgx v5, and River with `riverpgxv5`; Go standard library for JSON, SSE, logging, and HTTP lifecycle. Exact versions are pinned in `go.mod` and `go.sum`.
 
-**Storage**: PostgreSQL 17 with persistent Docker storage; River tables in the same database
+**Storage**: PostgreSQL 18 with persistent Docker storage; River tables in the same database
 
 **Testing**: `go test`, `httptest`, `go test -race`, PostgreSQL integration tests, and the supplied generator/evaluator
 
-**Target Platform**: Linux containers through Docker Compose; local macOS/Linux development
+**Target Platform**: Linux containers through Docker Compose; local macOS/Linux development with Adminer for direct database inspection
 
 **Project Type**: HTTP service with separate API and background-worker executables
 
@@ -62,7 +62,7 @@ complexity exception is required.
 ### Documentation (this feature)
 
 ```text
-specs/001-streaming-event-backend/
+submission/specs/001-streaming-event-backend/
 ├── plan.md
 ├── research.md
 ├── data-model.md
@@ -97,8 +97,10 @@ submission/
 ├── test/
 │   └── load/                       # Focused burst and alarm-latency checks
 ├── Makefile
-├── compose.yaml
-├── Dockerfile
+├── deployment/
+│   ├── compose.yaml
+│   ├── Dockerfile.api                # API image
+│   └── Dockerfile.worker             # Worker image
 └── go.mod
 ```
 

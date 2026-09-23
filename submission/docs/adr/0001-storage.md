@@ -13,7 +13,7 @@ The expected load is manageable with batching and partitioning. NoSQL would add 
 
 ## Database choice
 
-We will use PostgreSQL. It provides durable transactional storage, handles concurrent writes well, and has straightforward support for constraints, indexing, and recovery after process restarts.
+We will use PostgreSQL 18. It provides durable transactional storage, handles concurrent writes well, and has straightforward support for constraints, indexing, and recovery after process restarts.
 
 MariaDB and MySQL could also meet the persistence requirements. PostgreSQL was preferred because we are more familiar with it, and the assignment gives no specific reason to choose them instead.
 

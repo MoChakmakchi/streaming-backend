@@ -4,7 +4,7 @@ Run each stage's checks after that stage is implemented. Stop at every gate and 
 before continuing to the next stage.
 
 API shapes and error responses are defined in
-[`submission/docs/api/openapi.yml`](../../submission/docs/api/openapi.yml).
+[`submission/docs/api/openapi.yml`](../../docs/api/openapi.yml).
 
 ## Prerequisites
 
@@ -165,8 +165,8 @@ Create known health, occupancy, and alarm state, then hard-kill the application 
 
 ```bash
 cd submission
-docker compose kill api worker
-docker compose up -d api worker
+docker compose -f deployment/compose.yaml kill api worker
+docker compose -f deployment/compose.yaml up -d api worker
 ```
 
 Expected: query state remains available, pending River jobs resume, and no duplicate alarms or

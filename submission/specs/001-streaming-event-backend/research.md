@@ -2,12 +2,12 @@
 
 ## Runtime and dependencies
 
-**Decision**: Use Go 1.27.1, Chi v5.2.4, pgx v5.11.0, River v0.47.0, and PostgreSQL 17. Pin River and its CLI to the same version.
+**Decision**: Use Go 1.27, Chi v5, pgx v5, River with its pgx v5 driver, and PostgreSQL 18. Exact module versions are pinned in `go.mod` and `go.sum`; River and its CLI use the same resolved version.
 
 **Rationale**: These are current compatible releases. Chi stays close to `net/http`; pgx provides a
 direct PostgreSQL pool and transaction API; River's pgx v5 driver shares application transactions.
-PostgreSQL 17 is within River's supported three-major-version window and the design uses no
-version-specific feature.
+The design uses no PostgreSQL-version-specific feature beyond the standard transactional and
+indexing capabilities required by River and the application.
 
 **Alternatives considered**: Go 1.26 remains compatible but is not the current toolchain. An ORM,
 separate broker, and validation framework add no required capability.

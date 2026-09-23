@@ -5,7 +5,7 @@ description: "Dependency-ordered tasks for the real-time streaming event backend
 
 # Tasks: Real-Time Streaming Event Backend
 
-**Input**: Design documents from `specs/001-streaming-event-backend/`
+**Input**: Design documents from `submission/specs/001-streaming-event-backend/`
 
 **Prerequisites**: [plan.md](./plan.md), [spec.md](./spec.md), [research.md](./research.md),
 [data-model.md](./data-model.md), [quickstart.md](./quickstart.md), and
@@ -28,9 +28,9 @@ the preceding stage.
 
 **Purpose**: Establish the self-contained Go submission without adding unused packages.
 
-- [ ] T001 Initialize the Go 1.27 module and pin Chi, pgx, and River dependencies in `submission/go.mod` and `submission/go.sum`
-- [ ] T002 [P] Add the API build image and persistent PostgreSQL 17 service in `submission/Dockerfile`, `submission/.dockerignore`, and `submission/compose.yaml`
-- [ ] T003 [P] Add lean build, migration, API, test, and cleanup targets in `submission/Makefile`
+- [X] T001 Initialize the Go 1.27 module and pin Chi, pgx, and River dependencies in `submission/go.mod` and `submission/go.sum`
+- [X] T002 [P] Add API and worker build images, PostgreSQL 18 with persistent storage, and Adminer in `submission/deployment/Dockerfile.api`, `submission/deployment/Dockerfile.worker`, `submission/.dockerignore`, and `submission/deployment/compose.yaml`
+- [X] T003 [P] Add lean build, migration, API, test, and cleanup targets in `submission/Makefile`
 
 ---
 
@@ -58,7 +58,7 @@ the preceding stage.
 - [ ] T011 [US1] Implement River projection-job arguments and transactional heartbeat/presence enqueueing, including future scheduling, in `submission/internal/processing/jobs.go`
 - [ ] T012 [US1] Implement bounded POST `/events` ingestion with commit-before-acknowledgement, duplicate receipts, validation errors, and `503 Retry-After` in `submission/internal/httpapi/events.go` and register it in `submission/internal/httpapi/server.go`
 - [ ] T013 [US1] Wire configuration, pgx, the insert-only River client, HTTP lifecycle, and graceful API shutdown in `submission/cmd/api/main.go`
-- [ ] T014 [US1] Hand the Stage 1 checklist in `specs/001-streaming-event-backend/quickstart.md` to the user and wait for explicit confirmation before T015
+- [ ] T014 [US1] Hand the Stage 1 checklist in `submission/specs/001-streaming-event-backend/quickstart.md` to the user and wait for explicit confirmation before T015
 
 **Checkpoint**: User Story 1 is independently usable as the durable-ingestion MVP.
 
@@ -81,9 +81,9 @@ the preceding stage.
 - [ ] T018 [US2] Implement conditional latest-heartbeat upsert and five-minute distinct-heartbeat query in `submission/internal/features/health/store.go`
 - [ ] T019 [US2] Implement health projection and query rules in `submission/internal/features/health/service.go`
 - [ ] T020 [US2] Implement the River worker that loads a heartbeat event, updates health, and calls `JobCompleteTx` in the same transaction in `submission/internal/processing/worker.go`
-- [ ] T021 [US2] Add only the required River and worker configuration, wire the worker process, and add its container and commands in `submission/internal/config/config.go`, `submission/cmd/worker/main.go`, `submission/compose.yaml`, and `submission/Makefile`
+- [ ] T021 [US2] Add only the required River and worker configuration, wire the worker process into its existing container, and add its commands in `submission/internal/config/config.go`, `submission/cmd/worker/main.go`, `submission/deployment/compose.yaml`, and `submission/Makefile`
 - [ ] T022 [US2] Implement and register GET `/devices/{device_id}/health` in `submission/internal/httpapi/health.go` and `submission/internal/httpapi/server.go`
-- [ ] T023 [US2] Hand the Stage 2 checklist in `specs/001-streaming-event-backend/quickstart.md` to the user and wait for explicit confirmation before T024
+- [ ] T023 [US2] Hand the Stage 2 checklist in `submission/specs/001-streaming-event-backend/quickstart.md` to the user and wait for explicit confirmation before T024
 
 **Checkpoint**: The health half of User Story 2 is correct and manually confirmed.
 
@@ -107,7 +107,7 @@ the preceding stage.
 - [ ] T028 [US2] Implement occupancy projection and percentage rules in `submission/internal/features/occupancy/service.go`
 - [ ] T029 [US2] Extend River dispatch to process presence events and complete their projection transaction atomically in `submission/internal/processing/worker.go`
 - [ ] T030 [US2] Implement and register GET `/rooms/{room_id}/occupancy` in `submission/internal/httpapi/occupancy.go` and `submission/internal/httpapi/server.go`
-- [ ] T031 [US2] Hand the Stage 3 checklist in `specs/001-streaming-event-backend/quickstart.md` to the user and wait for explicit confirmation before T032
+- [ ] T031 [US2] Hand the Stage 3 checklist in `submission/specs/001-streaming-event-backend/quickstart.md` to the user and wait for explicit confirmation before T032
 
 **Checkpoint**: User Story 2 is complete and manually confirmed.
 
@@ -133,7 +133,7 @@ the preceding stage.
 - [ ] T038 [US3] Implement the dedicated PostgreSQL listener and periodic persisted-alarm check in `submission/internal/features/alarms/feed.go`
 - [ ] T039 [US3] Implement GET `/alarms` and GET `/alarms/stream` with SSE flushing and cancellation in `submission/internal/httpapi/alarms.go` and register both in `submission/internal/httpapi/server.go`
 - [ ] T040 [US3] Wire alarm storage, notification listening, and feed shutdown into `submission/cmd/api/main.go`
-- [ ] T041 [US3] Hand the Stage 4 checklist in `specs/001-streaming-event-backend/quickstart.md` to the user and wait for explicit confirmation before T042
+- [ ] T041 [US3] Hand the Stage 4 checklist in `submission/specs/001-streaming-event-backend/quickstart.md` to the user and wait for explicit confirmation before T042
 
 **Checkpoint**: User Story 3 is complete and manually confirmed.
 
@@ -170,8 +170,8 @@ the preceding stage.
 **Purpose**: Verify the completed submission without expanding scope or rewriting approved documents.
 
 - [ ] T052 Run formatting, vetting, focused tests, and the race detector across `submission/`, fixing only implementation defects found by those checks
-- [ ] T053 Verify endpoint behavior against `submission/docs/api/openapi.yml` and prepare every applicable scenario in `specs/001-streaming-event-backend/quickstart.md` for final user testing without changing decision records unless separately approved
-- [ ] T054 Hand the final Stage 5 checklist in `specs/001-streaming-event-backend/quickstart.md` and the results from T051–T053 to the user, then wait for explicit final confirmation
+- [ ] T053 Verify endpoint behavior against `submission/docs/api/openapi.yml` and prepare every applicable scenario in `submission/specs/001-streaming-event-backend/quickstart.md` for final user testing without changing decision records unless separately approved
+- [ ] T054 Hand the final Stage 5 checklist in `submission/specs/001-streaming-event-backend/quickstart.md` and the results from T051–T053 to the user, then wait for explicit final confirmation
 
 ---
 

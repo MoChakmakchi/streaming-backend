@@ -1,0 +1,373 @@
+openapi: 3.1.0
+info:
+  title: Teton Streaming Backend API
+  version: 0.1.0
+  description: HTTP contract for event ingestion, projections, alarm history, and the live alarm feed.
+servers:
+  - url: http://localhost:8080
+
+paths:
+  /events:
+    post:
+      summary: Ingest one device event
+      operationId: ingestEvent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeviceEvent"
+      responses:
+        "202":
+          description: The new event was committed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventReceipt"
+        "200":
+          description: The event was already accepted and no duplicate effect was created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventReceipt"
+        "400":
+          description: The request body is malformed or violates the event schema.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "422":
+          description: The event timestamp is outside the inclusive one-hour acceptance window.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          description: Capacity was not available before the ingest deadline; the event was not accepted.
+          headers:
+            Retry-After:
+              description: Suggested delay in seconds before retrying.
+              schema:
+                type: integer
+                minimum: 1
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /devices/{device_id}/health:
+    get:
+      summary: Get current device health
+      operationId: getDeviceHealth
+      parameters:
+        - $ref: "#/components/parameters/DeviceId"
+      responses:
+        "200":
+          description: Latest processed heartbeat and five-minute availability.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeviceHealth"
+        "404":
+          description: No heartbeat has been processed for the device.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /rooms/{room_id}/occupancy:
+    get:
+      summary: Get current room occupancy
+      operationId: getRoomOccupancy
+      parameters:
+        - $ref: "#/components/parameters/RoomId"
+        - name: window
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [1m, 5m, 1h]
+      responses:
+        "200":
+          description: Current state and occupied percentage for the requested window.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoomOccupancy"
+        "400":
+          description: The window is missing or unsupported.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: No presence event has been processed for the room.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /alarms:
+    get:
+      summary: Get persisted alarms
+      operationId: listAlarms
+      description: >-
+        Returns alarms in durable creation order. `since` filters on `created_at` and is inclusive,
+        so callers may receive the boundary alarm again and should deduplicate by `event_id`.
+      parameters:
+        - name: since
+          in: query
+          required: false
+          description: RFC 3339 durable creation timestamp, or `0` for all retained alarms.
+          schema:
+            type: string
+            default: "0"
+      responses:
+        "200":
+          description: Matching persisted alarms.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlarmList"
+        "400":
+          description: "`since` is neither `0` nor a valid RFC 3339 timestamp."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /alarms/stream:
+    get:
+      summary: Subscribe to new alarms
+      operationId: streamAlarms
+      description: >-
+        Opens a live SSE stream. Each message uses event type `alarm` and a LogicalAlarm JSON value
+        as its data. After a disconnect, reconnect to the stream and use `GET /alarms?since=<ts>`
+        with the last processed `created_at` value to recover missed alarms. Delivery is
+        at-least-once, so the same stable `event_id` may appear in both recovery and live results.
+      responses:
+        "200":
+          description: Live alarm stream.
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                examples:
+                  - "event: alarm\ndata: {\"event_id\":42,\"room_id\":\"room_14\",\"device_id\":\"dev_0001\",\"ts\":\"2026-05-23T18:53:49.123Z\",\"confidence\":0.92,\"created_at\":\"2026-05-23T18:53:49.200Z\"}\n\n"
+
+components:
+  parameters:
+    DeviceId:
+      name: device_id
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+    RoomId:
+      name: room_id
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+
+  schemas:
+    DeviceEvent:
+      oneOf:
+        - $ref: "#/components/schemas/HeartbeatEvent"
+        - $ref: "#/components/schemas/PresenceEvent"
+        - $ref: "#/components/schemas/MotionEvent"
+        - $ref: "#/components/schemas/SleepStateEvent"
+        - $ref: "#/components/schemas/FallWarningEvent"
+        - $ref: "#/components/schemas/NetworkStatusEvent"
+      discriminator:
+        propertyName: type
+        mapping:
+          heartbeat: "#/components/schemas/HeartbeatEvent"
+          presence: "#/components/schemas/PresenceEvent"
+          motion: "#/components/schemas/MotionEvent"
+          sleep_state: "#/components/schemas/SleepStateEvent"
+          fall_warn: "#/components/schemas/FallWarningEvent"
+          net_status: "#/components/schemas/NetworkStatusEvent"
+
+    EventEnvelope:
+      type: object
+      required: [device_id, room_id, type, ts, seq]
+      properties:
+        device_id:
+          type: string
+          minLength: 1
+        room_id:
+          type: string
+          minLength: 1
+        type:
+          type: string
+          enum: [heartbeat, presence, motion, sleep_state, fall_warn, net_status]
+        ts:
+          type: string
+          format: date-time
+        seq:
+          type: integer
+          format: int64
+          minimum: 0
+
+    HeartbeatEvent:
+      allOf:
+        - $ref: "#/components/schemas/EventEnvelope"
+        - type: object
+          properties:
+            type:
+              const: heartbeat
+      unevaluatedProperties: false
+
+    PresenceEvent:
+      allOf:
+        - $ref: "#/components/schemas/EventEnvelope"
+        - type: object
+          required: [in_room]
+          properties:
+            type:
+              const: presence
+            in_room:
+              type: boolean
+      unevaluatedProperties: false
+
+    MotionEvent:
+      allOf:
+        - $ref: "#/components/schemas/EventEnvelope"
+        - type: object
+          required: [magnitude]
+          properties:
+            type:
+              const: motion
+            magnitude:
+              type: number
+              minimum: 0
+              maximum: 1
+      unevaluatedProperties: false
+
+    SleepStateEvent:
+      allOf:
+        - $ref: "#/components/schemas/EventEnvelope"
+        - type: object
+          required: [state]
+          properties:
+            type:
+              const: sleep_state
+            state:
+              type: string
+              enum: [asleep, awake, unknown]
+      unevaluatedProperties: false
+
+    FallWarningEvent:
+      allOf:
+        - $ref: "#/components/schemas/EventEnvelope"
+        - type: object
+          required: [confidence]
+          properties:
+            type:
+              const: fall_warn
+            confidence:
+              type: number
+              minimum: 0
+              maximum: 1
+      unevaluatedProperties: false
+
+    NetworkStatusEvent:
+      allOf:
+        - $ref: "#/components/schemas/EventEnvelope"
+        - type: object
+          required: [rssi]
+          properties:
+            type:
+              const: net_status
+            rssi:
+              type: integer
+      unevaluatedProperties: false
+
+    EventReceipt:
+      type: object
+      required: [status, event_id]
+      properties:
+        status:
+          type: string
+          enum: [accepted, duplicate]
+        event_id:
+          type: integer
+          format: int64
+      additionalProperties: false
+
+    DeviceHealth:
+      type: object
+      required: [last_heartbeat_ts, availability_5m]
+      properties:
+        last_heartbeat_ts:
+          type: string
+          format: date-time
+        availability_5m:
+          type: number
+          minimum: 0
+          maximum: 1
+      additionalProperties: false
+
+    RoomOccupancy:
+      type: object
+      required: [in_room, occupied_pct, window_seconds]
+      properties:
+        in_room:
+          type: boolean
+        occupied_pct:
+          type: number
+          minimum: 0
+          maximum: 1
+        window_seconds:
+          type: integer
+          enum: [60, 300, 3600]
+      additionalProperties: false
+
+    LogicalAlarm:
+      type: object
+      required: [event_id, room_id, device_id, ts, confidence, created_at]
+      properties:
+        event_id:
+          type: integer
+          format: int64
+        room_id:
+          type: string
+        device_id:
+          type: string
+        ts:
+          type: string
+          format: date-time
+          description: Original device warning timestamp.
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        created_at:
+          type: string
+          format: date-time
+          description: Durable creation timestamp used by the inclusive `since` filter.
+      additionalProperties: false
+
+    AlarmList:
+      type: object
+      required: [alarms]
+      properties:
+        alarms:
+          type: array
+          items:
+            $ref: "#/components/schemas/LogicalAlarm"
+      additionalProperties: false
+
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          examples: [invalid_json, invalid_event, timestamp_out_of_range, overloaded, not_found]
+        message:
+          type: string
+      additionalProperties: false

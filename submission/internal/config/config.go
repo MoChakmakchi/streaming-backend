@@ -12,6 +12,7 @@ type Config struct {
 	DatabaseURL     string
 	DatabaseMaxConn int32
 	IngestDeadline  time.Duration
+	WorkerCount     int
 }
 
 func Load() (Config, error) {
@@ -20,6 +21,7 @@ func Load() (Config, error) {
 		DatabaseURL:     "postgres://teton:teton@localhost:5433/teton?sslmode=disable",
 		DatabaseMaxConn: 32,
 		IngestDeadline:  2 * time.Second,
+		WorkerCount:     8,
 	}
 
 	if value := os.Getenv("HTTP_ADDR"); value != "" {
@@ -41,6 +43,13 @@ func Load() (Config, error) {
 			return Config{}, fmt.Errorf("INGEST_DEADLINE must be a positive duration")
 		}
 		cfg.IngestDeadline = parsed
+	}
+	if value := os.Getenv("WORKER_COUNT"); value != "" {
+		parsed, err := strconv.Atoi(value)
+		if err != nil || parsed < 1 {
+			return Config{}, fmt.Errorf("WORKER_COUNT must be a positive integer")
+		}
+		cfg.WorkerCount = parsed
 	}
 
 	return cfg, nil

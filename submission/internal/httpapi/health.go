@@ -1,0 +1,36 @@
+package httpapi
+
+import (
+	"context"
+	"errors"
+	"net/http"
+	"time"
+
+	"github.com/go-chi/chi/v5"
+
+	"teton/internal/features/health"
+)
+
+type HealthQueryFunc func(context.Context, string, time.Time) (health.Health, error)
+
+type healthHandler struct {
+	query HealthQueryFunc
+	now   func() time.Time
+}
+
+func NewHealthHandler(query HealthQueryFunc, now func() time.Time) http.Handler {
+	return &healthHandler{query: query, now: now}
+}
+
+func (h *healthHandler) ServeHTTP(response http.ResponseWriter, request *http.Request) {
+	result, err := h.query(request.Context(), chi.URLParam(request, "device_id"), h.now().UTC())
+	if errors.Is(err, health.ErrNotFound) {
+		writeError(response, http.StatusNotFound, "not_found", "device health not found")
+		return
+	}
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "internal_error", "could not read device health")
+		return
+	}
+	writeJSON(response, http.StatusOK, result)
+}

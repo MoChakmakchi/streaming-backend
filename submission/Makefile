@@ -5,13 +5,14 @@ DB_NAME ?= teton
 DATABASE_URL ?= postgres://teton:teton@localhost:5433/teton?sslmode=disable
 RIVER_CLI_VERSION ?= v0.37.0
 
-.PHONY: help build migrate api test test-integration docker-init docker-up docker-down docker-destroy
+.PHONY: help build migrate api worker test test-integration docker-init docker-up docker-down docker-destroy
 
 help:
 	@echo "Targets:"
 	@echo "  build             compile all Go packages"
 	@echo "  migrate           apply application and River migrations"
 	@echo "  api               run the API locally"
+	@echo "  worker            run the worker locally"
 	@echo "  test              run Go tests"
 	@echo "  test-integration  run PostgreSQL ingestion tests"
 	@echo "  docker-init       start containers and apply migrations"
@@ -29,19 +30,22 @@ migrate:
 api:
 	$(GO) run ./cmd/api
 
+worker:
+	$(GO) run ./cmd/worker
+
 test:
 	$(GO) test ./...
 
 test-integration:
-	REQUIRE_TEST_DATABASE=1 $(GO) test ./internal/eventstore -count=1
+	REQUIRE_TEST_DATABASE=1 $(GO) test ./internal/... -count=1 -run '$(if $(TEST),(?i)$(TEST),.)'
 
 docker-init:
 	$(COMPOSE) up -d postgres adminer
 	$(MAKE) migrate
-	$(COMPOSE) up -d --build api
+	$(COMPOSE) up -d --build api worker
 
 docker-up:
-	$(COMPOSE) up -d postgres adminer api
+	$(COMPOSE) up -d postgres adminer api worker
 
 docker-down:
 	$(COMPOSE) down --remove-orphans

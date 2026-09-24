@@ -58,7 +58,7 @@ the preceding stage.
 - [X] T011 [US1] Implement River projection-job arguments and transactional heartbeat/presence enqueueing, including future scheduling, in `submission/internal/processing/jobs.go`
 - [X] T012 [US1] Implement bounded POST `/events` ingestion with commit-before-acknowledgement, duplicate receipts, validation errors, and `503 Retry-After` in `submission/internal/httpapi/events.go` and register it in `submission/internal/httpapi/server.go`
 - [X] T013 [US1] Wire configuration, pgx, the insert-only River client, HTTP lifecycle, and graceful API shutdown in `submission/cmd/api/main.go`
-- [ ] T014 [US1] Hand the Stage 1 checklist in `submission/specs/001-streaming-event-backend/quickstart.md` to the user and wait for explicit confirmation before T015
+- [X] T014 [US1] Hand the Stage 1 checklist in `submission/specs/001-streaming-event-backend/quickstart.md` to the user and wait for explicit confirmation before T015
 
 **Checkpoint**: User Story 1 is independently usable as the durable-ingestion MVP.
 
@@ -72,17 +72,17 @@ the preceding stage.
 
 ### Focused tests
 
-- [ ] T015 [P] [US2] Add PostgreSQL tests for heartbeat ordering, late-window contribution, future exclusion, retry idempotency, and transactional River completion in `submission/internal/features/health/service_test.go`
-- [ ] T016 [P] [US2] Add GET `/devices/{device_id}/health` compatibility and unknown-device tests in `submission/internal/httpapi/health_test.go`
+- [X] T015 [P] [US2] Add PostgreSQL tests for heartbeat ordering, late-window contribution, future exclusion, retry idempotency, and transactional River completion in `submission/internal/features/health/service_test.go`
+- [X] T016 [P] [US2] Add GET `/devices/{device_id}/health` compatibility and unknown-device tests in `submission/internal/httpapi/health_test.go`
 
 ### Implementation
 
-- [ ] T017 [US2] Define device-health values and response mapping in `submission/internal/features/health/model.go`
-- [ ] T018 [US2] Implement conditional latest-heartbeat upsert and five-minute distinct-heartbeat query in `submission/internal/features/health/store.go`
-- [ ] T019 [US2] Implement health projection and query rules in `submission/internal/features/health/service.go`
-- [ ] T020 [US2] Implement the River worker that loads a heartbeat event, updates health, and calls `JobCompleteTx` in the same transaction in `submission/internal/processing/worker.go`
-- [ ] T021 [US2] Add only the required River and worker configuration, wire the worker process into its existing container, and add its commands in `submission/internal/config/config.go`, `submission/cmd/worker/main.go`, `submission/deployment/compose.yaml`, and `submission/Makefile`
-- [ ] T022 [US2] Implement and register GET `/devices/{device_id}/health` in `submission/internal/httpapi/health.go` and `submission/internal/httpapi/server.go`
+- [X] T017 [US2] Define device-health values and response mapping in `submission/internal/features/health/model.go`
+- [X] T018 [US2] Implement conditional latest-heartbeat upsert and five-minute distinct-heartbeat query in `submission/internal/features/health/store.go`
+- [X] T019 [US2] Implement health projection and query rules in `submission/internal/features/health/service.go`
+- [X] T020 [US2] Implement the River worker that loads a heartbeat event, updates health, and calls `JobCompleteTx` in the same transaction in `submission/internal/processing/worker.go`
+- [X] T021 [US2] Add only the required River and worker configuration, wire the worker process into its existing container, and add its commands in `submission/internal/config/config.go`, `submission/cmd/worker/main.go`, `submission/deployment/compose.yaml`, and `submission/Makefile`
+- [X] T022 [US2] Implement and register GET `/devices/{device_id}/health` in `submission/internal/httpapi/health.go` and `submission/internal/httpapi/server.go`
 - [ ] T023 [US2] Hand the Stage 2 checklist in `submission/specs/001-streaming-event-backend/quickstart.md` to the user and wait for explicit confirmation before T024
 
 **Checkpoint**: The health half of User Story 2 is correct and manually confirmed.

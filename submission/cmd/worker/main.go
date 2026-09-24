@@ -2,9 +2,7 @@ package main
 
 import (
 	"context"
-	"errors"
 	"log"
-	"net/http"
 	"os/signal"
 	"syscall"
 	"time"
@@ -16,7 +14,6 @@ import (
 	"teton/internal/config"
 	"teton/internal/eventstore"
 	"teton/internal/features/health"
-	"teton/internal/httpapi"
 	"teton/internal/processing"
 )
 
@@ -43,38 +40,25 @@ func main() {
 		log.Fatal(err)
 	}
 
-	riverClient, err := river.NewClient(riverpgxv5.New(pool), &river.Config{})
+	events := eventstore.New(pool)
+	healthService := health.NewService(pool)
+	workers := river.NewWorkers()
+	river.AddWorker(workers, processing.NewProjectionWorker(pool, events, healthService))
+	riverClient, err := river.NewClient(riverpgxv5.New(pool), &river.Config{
+		Queues:  map[string]river.QueueConfig{river.QueueDefault: {MaxWorkers: cfg.WorkerCount}},
+		Workers: workers,
+	})
 	if err != nil {
 		log.Fatal(err)
 	}
-	events := eventstore.New(pool)
-	ingestor := processing.NewIngestor(pool, events, riverClient)
-	healthService := health.NewService(pool)
-	eventsHandler := httpapi.NewEventsHandler(ingestor.Ingest, int(cfg.DatabaseMaxConn), cfg.IngestDeadline, time.Now)
-	healthHandler := httpapi.NewHealthHandler(healthService.Get, time.Now)
-	server := &http.Server{
-		Addr:              cfg.HTTPAddr,
-		Handler:           httpapi.NewServer(eventsHandler, healthHandler),
-		ReadHeaderTimeout: 5 * time.Second,
+	if err := riverClient.Start(context.Background()); err != nil {
+		log.Fatal(err)
 	}
 
-	serverError := make(chan error, 1)
-	go func() {
-		serverError <- server.ListenAndServe()
-	}()
-
-	select {
-	case err := <-serverError:
-		if !errors.Is(err, http.ErrServerClosed) {
-			log.Printf("HTTP server stopped: %v", err)
-		}
-		return
-	case <-ctx.Done():
-	}
-
+	<-ctx.Done()
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	if err := server.Shutdown(shutdownCtx); err != nil {
-		log.Printf("HTTP shutdown: %v", err)
+	if err := riverClient.Stop(shutdownCtx); err != nil {
+		log.Printf("worker shutdown: %v", err)
 	}
 }

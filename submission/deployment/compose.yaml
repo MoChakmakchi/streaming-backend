@@ -43,6 +43,8 @@ services:
       dockerfile: deployment/Dockerfile.worker
     environment:
       DATABASE_URL: postgres://teton:teton@postgres:5432/teton?sslmode=disable
+      DATABASE_MAX_CONNECTIONS: 16
+      WORKER_COUNT: 8
     depends_on:
       postgres:
         condition: service_healthy

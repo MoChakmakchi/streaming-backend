@@ -42,22 +42,22 @@ the preceding stage.
 
 ### Stage configuration
 
-- [ ] T004 [US1] Add only the HTTP, PostgreSQL, and ingest-deadline configuration required by Stage 1 in `submission/internal/config/config.go`
+- [X] T004 [US1] Add only the HTTP, PostgreSQL, and ingest-deadline configuration required by Stage 1 in `submission/internal/config/config.go`
 
 ### Focused tests
 
-- [ ] T005 [P] [US1] Add event-schema and inclusive ±1-hour boundary tests required by FR-001–FR-003 in `submission/internal/event/model_test.go`
-- [ ] T006 [P] [US1] Add POST `/events` response tests for accepted, duplicate, malformed, out-of-window, and retryable `503` cases in `submission/internal/httpapi/events_test.go`
-- [ ] T007 [P] [US1] Add PostgreSQL integration tests for `(device_id, seq)` idempotency, atomic River enqueue, non-job event types, and retry after commit-before-response failure in `submission/internal/eventstore/store_test.go`
+- [X] T005 [P] [US1] Add event-schema and inclusive ±1-hour boundary tests required by FR-001–FR-003 in `submission/internal/event/model_test.go`
+- [X] T006 [P] [US1] Add POST `/events` response tests for accepted, duplicate, malformed, out-of-window, and retryable `503` cases in `submission/internal/httpapi/events_test.go`
+- [X] T007 [P] [US1] Add PostgreSQL integration tests for `(device_id, seq)` idempotency, atomic River enqueue, non-job event types, and retry after commit-before-response failure in `submission/internal/eventstore/store_test.go`
 
 ### Implementation
 
-- [ ] T008 [US1] Create the single idempotent application schema with events, health, occupancy, alarms, required constraints, and focused indexes in `submission/migrations/001_initial.sql`, and add the pinned River migration command to `submission/Makefile`
-- [ ] T009 [US1] Implement the six event variants, strict JSON decoding inputs, field validation, and timestamp-window validation in `submission/internal/event/model.go`
-- [ ] T010 [US1] Implement append-only transactional insertion, duplicate lookup, and event reads in `submission/internal/eventstore/store.go`
-- [ ] T011 [US1] Implement River projection-job arguments and transactional heartbeat/presence enqueueing, including future scheduling, in `submission/internal/processing/jobs.go`
-- [ ] T012 [US1] Implement bounded POST `/events` ingestion with commit-before-acknowledgement, duplicate receipts, validation errors, and `503 Retry-After` in `submission/internal/httpapi/events.go` and register it in `submission/internal/httpapi/server.go`
-- [ ] T013 [US1] Wire configuration, pgx, the insert-only River client, HTTP lifecycle, and graceful API shutdown in `submission/cmd/api/main.go`
+- [X] T008 [US1] Create the single idempotent application schema with events, health, occupancy, alarms, required constraints, and focused indexes in `submission/migrations/001_initial.sql`, and add the pinned River migration command to `submission/Makefile`
+- [X] T009 [US1] Implement the six event variants, strict JSON decoding inputs, field validation, and timestamp-window validation in `submission/internal/event/model.go`
+- [X] T010 [US1] Implement append-only transactional insertion, duplicate lookup, and event reads in `submission/internal/eventstore/store.go`
+- [X] T011 [US1] Implement River projection-job arguments and transactional heartbeat/presence enqueueing, including future scheduling, in `submission/internal/processing/jobs.go`
+- [X] T012 [US1] Implement bounded POST `/events` ingestion with commit-before-acknowledgement, duplicate receipts, validation errors, and `503 Retry-After` in `submission/internal/httpapi/events.go` and register it in `submission/internal/httpapi/server.go`
+- [X] T013 [US1] Wire configuration, pgx, the insert-only River client, HTTP lifecycle, and graceful API shutdown in `submission/cmd/api/main.go`
 - [ ] T014 [US1] Hand the Stage 1 checklist in `submission/specs/001-streaming-event-backend/quickstart.md` to the user and wait for explicit confirmation before T015
 
 **Checkpoint**: User Story 1 is independently usable as the durable-ingestion MVP.
@@ -97,7 +97,7 @@ the preceding stage.
 
 ### Focused tests
 
-- [ ] T024 [P] [US2] Add PostgreSQL tests for not found before the first applicable presence event, pre-first-event window handling, deterministic ties, late correction, future exclusion, all three windows, and retry idempotency in `submission/internal/features/occupancy/service_test.go`
+- [ ] T024 [P] [US2] Add PostgreSQL tests for not found before the first applicable presence event, pre-first-event window handling, deterministic ties, concurrent late-event correction for one room, future exclusion, all three windows, and retry idempotency in `submission/internal/features/occupancy/service_test.go`
 - [ ] T025 [P] [US2] Add GET `/rooms/{room_id}/occupancy` contract tests for supported windows, invalid windows, and unknown rooms in `submission/internal/httpapi/occupancy_test.go`
 
 ### Implementation
@@ -148,7 +148,7 @@ the preceding stage.
 ### Focused tests
 
 - [ ] T042 [P] [US4] Add saturation and retry-storm tests proving bounded admission, explicit `503 Retry-After`, and no false acknowledgement in `submission/internal/httpapi/backpressure_test.go`
-- [ ] T043 [P] [US4] Add failure-boundary tests for API commit-before-response, worker pre/post-commit termination, exhausted River retries, pending-job recovery, event-log replay, and migration/job-payload compatibility across restart in `submission/internal/processing/restart_test.go`
+- [ ] T043 [P] [US4] Add failure-boundary tests for API commit-before-response, worker pre/post-commit termination, exhausted River retries remaining visible through an operator signal, pending-job recovery, event-log replay, and migration/job-payload compatibility across restart in `submission/internal/processing/restart_test.go`
 
 ### Implementation and verification
 
@@ -156,10 +156,10 @@ the preceding stage.
 - [ ] T045 [US4] Tune separate API and worker pgx pools, request admission, ingest deadlines, and worker counts through `submission/internal/config/config.go`, `submission/cmd/api/main.go`, and `submission/cmd/worker/main.go`
 - [ ] T046 [P] [US4] Implement the required counters, latency summaries, backlog age, projection lag, retry, and saturation reporting in the owning packages, with HTTP export in `submission/internal/httpapi/metrics.go`; add shared metric plumbing only if the implementation requires it
 - [ ] T047 [US4] Add structured ingest, processing, retry, alarm, and shutdown instrumentation in `submission/internal/httpapi/events.go`, `submission/internal/processing/worker.go`, and `submission/internal/features/alarms/service.go`
-- [ ] T048 [P] [US4] Implement a five-minute 5,000-events/second baseline and two 30-second 50,000-events/second bursts with alarm p50/p95 measurement in `submission/test/load/main.go`
+- [ ] T048 [P] [US4] Implement a five-minute 5,000-events/second baseline and two 30-second 50,000-events/second bursts; prove River backlog during alarm p50/p95 measurement, then verify health and occupancy match accepted-event ground truth after the backlog drains in `submission/test/load/main.go`
 - [ ] T049 [P] [US4] Implement the hard-kill, restart-order, persistent-volume, event-log-replay, and backlog-recovery scenario in `submission/test/load/restart.sh`
 - [ ] T050 [US4] Add final integration, race, load, restart, replay, and evaluator targets to `submission/Makefile`
-- [ ] T051 [US4] Run the automated Stage 5 targets from `submission/Makefile`, including ingestion and query verification for a 5,001st device, and prepare the metrics and recovery results for user review
+- [ ] T051 [US4] Run the automated Stage 5 targets from `submission/Makefile`, including the exhausted-retry signal, post-burst projection catch-up, and ingestion and query verification for a 5,001st device, then prepare the metrics and recovery results for user review
 
 **Checkpoint**: All four user stories meet the assignment's correctness and performance conditions.
 

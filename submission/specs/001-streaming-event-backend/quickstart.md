@@ -17,16 +17,15 @@ The submission Makefile will provide these commands:
 
 ```bash
 cd submission
-make up                 # PostgreSQL migrations, River migrations, API, and worker
-make logs
+make docker-init        # Build, start containers, and apply migrations
 make test
 make test-integration
 make test-load
-make down
+make docker-down
 ```
 
-The API listens on `http://localhost:8080` by default. PostgreSQL data remains in a named Compose
-volume across normal `make down` and container restarts.
+The Compose API listens on `http://localhost:8090`. PostgreSQL data remains in a named Compose
+volume across normal `make docker-down` and container restarts.
 
 ## Stage 1 — Event ingestion and persistence
 
@@ -34,14 +33,14 @@ Start the stack, then define a current timestamp:
 
 ```bash
 cd submission
-make up
+make docker-init
 NOW="$(date -u +"%Y-%m-%dT%H:%M:%S.000Z")"
 ```
 
 Submit a valid event:
 
 ```bash
-curl -i -X POST http://localhost:8080/events \
+curl -i -X POST http://localhost:8090/events \
   -H 'Content-Type: application/json' \
   -d "{\"device_id\":\"dev_manual\",\"room_id\":\"room_manual\",\"type\":\"heartbeat\",\"ts\":\"$NOW\",\"seq\":1}"
 ```
@@ -52,11 +51,11 @@ with status `duplicate` and the same event ID.
 Submit malformed and out-of-window events:
 
 ```bash
-curl -i -X POST http://localhost:8080/events \
+curl -i -X POST http://localhost:8090/events \
   -H 'Content-Type: application/json' \
   -d '{"device_id":"dev_manual"}'
 
-curl -i -X POST http://localhost:8080/events \
+curl -i -X POST http://localhost:8090/events \
   -H 'Content-Type: application/json' \
   -d '{"device_id":"dev_manual","room_id":"room_manual","type":"heartbeat","ts":"2000-01-01T00:00:00Z","seq":2}'
 ```
@@ -73,7 +72,7 @@ Stage 2.
 Post two heartbeat events with distinct timestamps and sequences, then query:
 
 ```bash
-curl http://localhost:8080/devices/dev_manual/health
+curl http://localhost:8090/devices/dev_manual/health
 ```
 
 Expected response shape:
@@ -107,9 +106,9 @@ Submit an occupied transition, wait briefly, and submit an unoccupied transition
 sequence number. Query every supported window:
 
 ```bash
-curl 'http://localhost:8080/rooms/room_manual/occupancy?window=1m'
-curl 'http://localhost:8080/rooms/room_manual/occupancy?window=5m'
-curl 'http://localhost:8080/rooms/room_manual/occupancy?window=1h'
+curl 'http://localhost:8090/rooms/room_manual/occupancy?window=1m'
+curl 'http://localhost:8090/rooms/room_manual/occupancy?window=5m'
+curl 'http://localhost:8090/rooms/room_manual/occupancy?window=1h'
 ```
 
 Expected: each response contains `in_room`, `occupied_pct`, and `window_seconds`; the percentage is
@@ -129,7 +128,7 @@ before Stage 4.
 In one terminal, open the SSE stream:
 
 ```bash
-curl -N http://localhost:8080/alarms/stream
+curl -N http://localhost:8090/alarms/stream
 ```
 
 In another terminal, post a fall warning using a current timestamp. Post a second warning from the
@@ -138,14 +137,14 @@ same device and room within three event-time seconds but with a different sequen
 Expected: the stream emits one `alarm` event and history contains one logical alarm:
 
 ```bash
-curl 'http://localhost:8080/alarms?since=0'
+curl 'http://localhost:8090/alarms?since=0'
 ```
 
 Record its `created_at`, disconnect the stream, create another alarm, reconnect, and query with the
 recorded value:
 
 ```bash
-curl 'http://localhost:8080/alarms?since=<created_at>'
+curl 'http://localhost:8090/alarms?since=<created_at>'
 ```
 
 Expected: the boundary alarm may repeat, the missed alarm is present, and repeated alarms keep the
@@ -180,9 +179,9 @@ make test-integration
 make test-load
 
 cd ..
-make smoke SERVICE_URL=http://localhost:8080
-make offline SERVICE_URL=http://localhost:8080
-make burst SERVICE_URL=http://localhost:8080
+make smoke SERVICE_URL=http://localhost:8090
+make offline SERVICE_URL=http://localhost:8090
+make burst SERVICE_URL=http://localhost:8090
 ```
 
 Expected:

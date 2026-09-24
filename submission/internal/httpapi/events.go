@@ -8,19 +8,24 @@ import (
 	"time"
 
 	"teton/internal/event"
-	"teton/internal/processing"
+	"teton/internal/eventstore"
 )
 
-type IngestFunc func(context.Context, event.Event, time.Time) (processing.IngestResult, error)
+type ingestFunc func(context.Context, event.Event, time.Time) (eventstore.InsertResult, error)
 
 type eventsHandler struct {
-	ingest   IngestFunc
+	ingest   ingestFunc
 	capacity chan struct{}
 	deadline time.Duration
 	now      func() time.Time
 }
 
-func NewEventsHandler(ingest IngestFunc, maxConcurrent int, deadline time.Duration, now func() time.Time) http.Handler {
+func NewEventsHandler(
+	ingest ingestFunc,
+	maxConcurrent int,
+	deadline time.Duration,
+	now func() time.Time,
+) http.Handler {
 	return &eventsHandler{
 		ingest:   ingest,
 		capacity: make(chan struct{}, maxConcurrent),
@@ -69,7 +74,7 @@ func (h *eventsHandler) ServeHTTP(response http.ResponseWriter, request *http.Re
 	writeJSON(response, statusCode, struct {
 		Status  string `json:"status"`
 		EventID int64  `json:"event_id"`
-	}{status, result.EventID})
+	}{Status: status, EventID: result.EventID})
 }
 
 func writeUnavailable(response http.ResponseWriter) {
@@ -81,7 +86,7 @@ func writeError(response http.ResponseWriter, status int, code, message string) 
 	writeJSON(response, status, struct {
 		Code    string `json:"code"`
 		Message string `json:"message"`
-	}{code, message})
+	}{Code: code, Message: message})
 }
 
 func writeJSON(response http.ResponseWriter, status int, value any) {

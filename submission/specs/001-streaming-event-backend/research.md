@@ -2,64 +2,30 @@
 
 ## Runtime and dependencies
 
-**Decision**: Use Go 1.27, Chi v5, pgx v5, River with its pgx v5 driver, and PostgreSQL 18. Exact module versions are pinned in `go.mod` and `go.sum`; River and its CLI use the same resolved version.
+**Decision**: Use Go 1.27, Chi v5, pgx v5, and PostgreSQL 18. Exact module versions are pinned in
+`go.mod` and `go.sum`.
 
 **Rationale**: These are current compatible releases. Chi stays close to `net/http`; pgx provides a
-direct PostgreSQL pool and transaction API; River's pgx v5 driver shares application transactions.
-The design uses no PostgreSQL-version-specific feature beyond the standard transactional and
-indexing capabilities required by River and the application.
+direct PostgreSQL pool and transaction API. The design uses no PostgreSQL-version-specific feature
+beyond the standard transactional and indexing capabilities required by the application.
 
 **Alternatives considered**: Go 1.26 remains compatible but is not the current toolchain. An ORM,
 separate broker, and validation framework add no required capability.
 
 Sources: [Go releases](https://go.dev/doc/devel/release), [Chi](https://github.com/go-chi/chi),
-[pgx](https://github.com/jackc/pgx), [River release](https://github.com/riverqueue/river/releases/tag/v0.47.0)
+[pgx](https://github.com/jackc/pgx)
 
-## Transactional River integration
+## Event history queries
 
-**Decision**: Insert projection jobs with `Client.InsertTx` in the raw-event transaction. Workers
-update state and call `river.JobCompleteTx` in one pgx transaction. Use one normal queue with
-bounded configurable workers and River's default retries.
-
-**Rationale**: The job appears only when the event commits, and job completion cannot commit
-without the projection update. This closes the restart windows identified in ADR 0006 without a
-second broker or outbox. River retries are already durable and workers remain idempotent.
-
-**Alternatives considered**: Non-transactional insertion/completion reopens failure windows.
-Custom retry logic, priorities, and multiple queues are unnecessary because alarms bypass River.
-
-Sources: [transactional enqueueing](https://riverqueue.com/docs/transactional-enqueueing),
-[transactional completion](https://riverqueue.com/docs/transactional-job-completion),
-[reliable workers](https://riverqueue.com/docs/reliable-workers)
-
-## Future heartbeat and presence events
-
-**Decision**: Store future events immediately and set `river.InsertOpts.ScheduledAt` to their event
-time. Fall alarms remain immediate.
-
-**Rationale**: Scheduled jobs are durable and prevent future state events from changing current
-projections before their event time. River may promote a scheduled job a few seconds late, which
-is acceptable for projections; the one-second requirement applies to alarms.
-
-**Alternatives considered**: Updating current state immediately is incorrect. A custom scheduler
-duplicates River. Querying only raw history would make the accepted worker/projection design
-pointless.
-
-Source: [River scheduled jobs](https://riverqueue.com/docs/scheduled-jobs)
-
-## Event history and projections
-
-**Decision**: Persist the raw envelope plus type-specific JSON in one append-only table. Keep
-current health and occupancy rows as projections; calculate rolling windows from indexed raw
-heartbeat and presence history.
-
-**Rationale**: Current-state reads remain cheap while late events automatically affect the next
-rolling-window query. This avoids stored time buckets, correction jobs, and duplicated event
+**Decision**: Calculate latest health, latest occupancy, and rolling results from indexed event
 history.
 
-**Alternatives considered**: Recomputing the entire event log on every query does not use the
-persisted projections. Persisted rolling buckets require complex late-event repair and are not
-needed for the assignment.
+**Rationale**: The bounded per-device and per-room windows use selective partial indexes. Late
+events affect the next query immediately, and accepted future events remain excluded until the
+query cutoff reaches their event time.
+
+The implementation-stage refinement that led to this design is recorded in
+[`implementation-decisions.md`](../../docs/implementation-decisions.md).
 
 ## Index and ordering strategy
 
@@ -128,18 +94,17 @@ Sources: [server-sent events](https://html.spec.whatwg.org/multipage/server-sent
 
 ## Migrations, durability, and verification
 
-**Decision**: Apply one idempotent application SQL migration with `psql`; apply River migrations
-once with its pinned CLI. Keep PostgreSQL `fsync` and synchronous commit enabled. Use real
-PostgreSQL integration tests and the supplied generator rather than mocks or another load tool.
+**Decision**: Apply one idempotent application SQL migration with `psql`. Keep PostgreSQL `fsync`
+and synchronous commit enabled. Use real PostgreSQL integration tests and the supplied generator
+rather than mocks or another load tool.
 
 **Rationale**: This is reproducible and avoids a migration framework for one initial schema.
 Synchronous commit is required before acknowledging accepted events. Real database tests cover
 the transactional behavior mocks cannot prove.
 
-**Alternatives considered**: Application-start migrations can race between API and worker.
-Asynchronous commit weakens crash durability. A separate load framework is deferred unless the
-provided harness and focused load script prove insufficient.
+**Alternatives considered**: Application-start migrations couple service availability to schema
+changes. Asynchronous commit weakens crash durability. A separate load framework is deferred
+unless the provided harness and focused load script prove insufficient.
 
-Sources: [River migrations](https://riverqueue.com/docs/migrations),
-[PostgreSQL WAL settings](https://www.postgresql.org/docs/current/runtime-config-wal.html),
+Sources: [PostgreSQL WAL settings](https://www.postgresql.org/docs/current/runtime-config-wal.html),
 [Go race detector](https://go.dev/doc/articles/race_detector)

@@ -7,8 +7,6 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-
-	"teton/internal/event"
 )
 
 var ErrNotFound = errors.New("device health not found")
@@ -19,10 +17,6 @@ type Service struct {
 
 func NewService(pool *pgxpool.Pool) *Service {
 	return &Service{store: &store{pool: pool}}
-}
-
-func (s *Service) Project(ctx context.Context, tx pgx.Tx, heartbeat event.Event) error {
-	return s.store.upsert(ctx, tx, heartbeat)
 }
 
 func (s *Service) Get(ctx context.Context, deviceID string, queryTime time.Time) (Health, error) {

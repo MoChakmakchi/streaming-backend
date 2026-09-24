@@ -11,14 +11,14 @@ import (
 	"teton/internal/features/health"
 )
 
-type HealthQueryFunc func(context.Context, string, time.Time) (health.Health, error)
+type healthQueryFunc func(context.Context, string, time.Time) (health.Health, error)
 
 type healthHandler struct {
-	query HealthQueryFunc
+	query healthQueryFunc
 	now   func() time.Time
 }
 
-func NewHealthHandler(query HealthQueryFunc, now func() time.Time) http.Handler {
+func NewHealthHandler(query healthQueryFunc, now func() time.Time) http.Handler {
 	return &healthHandler{query: query, now: now}
 }
 

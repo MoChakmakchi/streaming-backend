@@ -22,7 +22,7 @@ func TestGetDeviceHealth(t *testing.T) {
 		}
 		return health.Health{LastHeartbeatAt: now.Add(-time.Second), Availability5m: 0.5}, nil
 	}, func() time.Time { return now })
-	server := NewServer(http.NotFoundHandler(), healthHandler)
+	server := NewServer(http.NotFoundHandler(), healthHandler, http.NotFoundHandler())
 
 	t.Run("compatible response", func(t *testing.T) {
 		response := httptest.NewRecorder()

@@ -61,8 +61,8 @@ curl -i -X POST http://localhost:8090/events \
 ```
 
 Expected: `400 Bad Request` for the malformed body and `422 Unprocessable Entity` for the old
-timestamp. Neither creates an event. Run `make test-integration` to verify atomic event/job
-creation and the exact ±1-hour boundaries.
+timestamp. Neither creates an event. Run `make test-integration` to verify durable insertion,
+idempotency, and the exact ±1-hour boundaries.
 
 **Manual gate:** confirm persistence, duplicate handling, validation, and restart survival before
 Stage 2.
@@ -99,11 +99,9 @@ make test-integration TEST=health
 
 ## Stage 3 — Room occupancy
 
-Before posting any presence event for `room_manual`, query it and verify that the response is
-`404 Not Found`.
+Before posting any presence event for `room_manual`, query it and verify that the response is `404 Not Found`.
 
-Submit an occupied transition, wait briefly, and submit an unoccupied transition with the next
-sequence number. Query every supported window:
+Submit an occupied transition, then an unoccupied transition with the next sequence number. Query every supported window:
 
 ```bash
 curl 'http://localhost:8090/rooms/room_manual/occupancy?window=1m'
@@ -111,9 +109,7 @@ curl 'http://localhost:8090/rooms/room_manual/occupancy?window=5m'
 curl 'http://localhost:8090/rooms/room_manual/occupancy?window=1h'
 ```
 
-Expected: each response contains `in_room`, `occupied_pct`, and `window_seconds`; the percentage is
-between 0 and 1. Insert a late presence transition within the window and verify that the next
-query corrects the percentage without replacing a newer current state.
+Expected: each response contains `in_room`, `occupied_pct`, and `window_seconds`; the percentage is between 0 and 1. Insert a late presence transition within the window and verify that the next query corrects the percentage without replacing a newer current state.
 
 ```bash
 cd submission
@@ -164,12 +160,12 @@ Create known health, occupancy, and alarm state, then hard-kill the application 
 
 ```bash
 cd submission
-docker compose -f deployment/compose.yaml kill api worker
-docker compose -f deployment/compose.yaml up -d api worker
+docker compose -f deployment/compose.yaml kill api
+docker compose -f deployment/compose.yaml up -d api
 ```
 
-Expected: query state remains available, pending River jobs resume, and no duplicate alarms or
-projection effects appear.
+Expected: committed events and alarms remain available, and health and occupancy return the same
+results without duplicate alarms.
 
 Run focused verification:
 
@@ -191,8 +187,8 @@ Expected:
 - Alarm count matches distinct falls.
 - Alarm latency remains at or below one second p95 during the dedicated 50,000-events/second test.
 - Overload produces explicit `503` responses with `Retry-After`, never false acceptance.
-- Logs and metrics identify ingest rejection, PostgreSQL saturation, River backlog/age, projection
-  lag, retries, and alarm latency.
+- Logs and metrics identify ingest rejection, query latency, PostgreSQL saturation, and alarm
+  latency.
 
 **Final manual gate:** confirm the evaluator, restart, burst, and observability results before
 completing the submission write-up.

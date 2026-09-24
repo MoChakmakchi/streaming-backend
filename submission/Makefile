@@ -2,19 +2,16 @@ GO ?= go
 COMPOSE ?= docker compose -f deployment/compose.yaml
 DB_USER ?= teton
 DB_NAME ?= teton
-DATABASE_URL ?= postgres://teton:teton@localhost:5433/teton?sslmode=disable
-RIVER_CLI_VERSION ?= v0.37.0
 
-.PHONY: help build migrate api worker test test-integration docker-init docker-up docker-down docker-destroy
+.PHONY: help build migrate api test test-integration docker-init docker-up docker-down docker-destroy
 
 help:
 	@echo "Targets:"
 	@echo "  build             compile all Go packages"
-	@echo "  migrate           apply application and River migrations"
+	@echo "  migrate           apply the application migration"
 	@echo "  api               run the API locally"
-	@echo "  worker            run the worker locally"
 	@echo "  test              run Go tests"
-	@echo "  test-integration  run PostgreSQL ingestion tests"
+	@echo "  test-integration  run PostgreSQL integration tests"
 	@echo "  docker-init       start containers and apply migrations"
 	@echo "  docker-up         start containers without migrating"
 	@echo "  docker-down       stop containers and preserve data"
@@ -25,27 +22,23 @@ build:
 
 migrate:
 	$(COMPOSE) exec -T postgres psql -U $(DB_USER) -d $(DB_NAME) -v ON_ERROR_STOP=1 < migrations/001_initial.sql
-	$(GO) run github.com/riverqueue/river/cmd/river@$(RIVER_CLI_VERSION) migrate-up --database-url "$(DATABASE_URL)"
 
 api:
 	$(GO) run ./cmd/api
-
-worker:
-	$(GO) run ./cmd/worker
 
 test:
 	$(GO) test ./...
 
 test-integration:
-	REQUIRE_TEST_DATABASE=1 $(GO) test ./internal/... -count=1 -run '$(if $(TEST),(?i)$(TEST),.)'
+	REQUIRE_TEST_DATABASE=1 $(GO) test -tags=integration -p=1 ./internal/... -count=1 -run '$(if $(TEST),(?i)$(TEST),.)'
 
 docker-init:
 	$(COMPOSE) up -d postgres adminer
 	$(MAKE) migrate
-	$(COMPOSE) up -d --build api worker
+	$(COMPOSE) up -d --build api
 
 docker-up:
-	$(COMPOSE) up -d postgres adminer api worker
+	$(COMPOSE) up -d postgres adminer api
 
 docker-down:
 	$(COMPOSE) down --remove-orphans

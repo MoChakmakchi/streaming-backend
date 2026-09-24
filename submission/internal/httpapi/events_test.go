@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"teton/internal/event"
-	"teton/internal/processing"
+	"teton/internal/eventstore"
 )
 
 func TestPostEventsResponses(t *testing.T) {
@@ -19,15 +19,15 @@ func TestPostEventsResponses(t *testing.T) {
 	tests := []struct {
 		name       string
 		body       string
-		ingest     IngestFunc
+		ingest     ingestFunc
 		wantStatus int
 		wantBody   string
 	}{
 		{
 			name: "accepted",
 			body: valid,
-			ingest: func(context.Context, event.Event, time.Time) (processing.IngestResult, error) {
-				return processing.IngestResult{EventID: 41, Inserted: true}, nil
+			ingest: func(context.Context, event.Event, time.Time) (eventstore.InsertResult, error) {
+				return eventstore.InsertResult{EventID: 41, Inserted: true}, nil
 			},
 			wantStatus: http.StatusAccepted,
 			wantBody:   `{"status":"accepted","event_id":41}`,
@@ -35,8 +35,8 @@ func TestPostEventsResponses(t *testing.T) {
 		{
 			name: "duplicate",
 			body: valid,
-			ingest: func(context.Context, event.Event, time.Time) (processing.IngestResult, error) {
-				return processing.IngestResult{EventID: 41}, nil
+			ingest: func(context.Context, event.Event, time.Time) (eventstore.InsertResult, error) {
+				return eventstore.InsertResult{EventID: 41}, nil
 			},
 			wantStatus: http.StatusOK,
 			wantBody:   `{"status":"duplicate","event_id":41}`,
@@ -56,8 +56,8 @@ func TestPostEventsResponses(t *testing.T) {
 		{
 			name: "retryable failure",
 			body: valid,
-			ingest: func(context.Context, event.Event, time.Time) (processing.IngestResult, error) {
-				return processing.IngestResult{}, errors.New("database unavailable")
+			ingest: func(context.Context, event.Event, time.Time) (eventstore.InsertResult, error) {
+				return eventstore.InsertResult{}, errors.New("database unavailable")
 			},
 			wantStatus: http.StatusServiceUnavailable,
 			wantBody:   `"code":"overloaded"`,

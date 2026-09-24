@@ -20,25 +20,6 @@ CREATE INDEX IF NOT EXISTS events_presence_room_time_idx
     ON events (room_id, event_time, device_id, seq)
     WHERE event_type = 'presence';
 
-CREATE TABLE IF NOT EXISTS device_health (
-    device_id text PRIMARY KEY,
-    room_id text NOT NULL,
-    event_id bigint NOT NULL REFERENCES events (id),
-    last_heartbeat_at timestamptz NOT NULL,
-    last_seq bigint NOT NULL,
-    updated_at timestamptz NOT NULL DEFAULT now()
-);
-
-CREATE TABLE IF NOT EXISTS room_occupancy (
-    room_id text PRIMARY KEY,
-    in_room boolean NOT NULL,
-    event_id bigint NOT NULL REFERENCES events (id),
-    last_event_at timestamptz NOT NULL,
-    last_device_id text NOT NULL,
-    last_seq bigint NOT NULL,
-    updated_at timestamptz NOT NULL DEFAULT now()
-);
-
 CREATE TABLE IF NOT EXISTS alarms (
     id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     source_event_id bigint NOT NULL UNIQUE REFERENCES events (id),

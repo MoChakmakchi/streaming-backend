@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"strconv"
 	"time"
@@ -12,7 +13,7 @@ type Config struct {
 	DatabaseURL     string
 	DatabaseMaxConn int32
 	IngestDeadline  time.Duration
-	WorkerCount     int
+	LogLevel        slog.Level
 }
 
 func Load() (Config, error) {
@@ -21,7 +22,7 @@ func Load() (Config, error) {
 		DatabaseURL:     "postgres://teton:teton@localhost:5433/teton?sslmode=disable",
 		DatabaseMaxConn: 32,
 		IngestDeadline:  2 * time.Second,
-		WorkerCount:     8,
+		LogLevel:        slog.LevelInfo,
 	}
 
 	if value := os.Getenv("HTTP_ADDR"); value != "" {
@@ -44,13 +45,10 @@ func Load() (Config, error) {
 		}
 		cfg.IngestDeadline = parsed
 	}
-	if value := os.Getenv("WORKER_COUNT"); value != "" {
-		parsed, err := strconv.Atoi(value)
-		if err != nil || parsed < 1 {
-			return Config{}, fmt.Errorf("WORKER_COUNT must be a positive integer")
+	if value := os.Getenv("LOG_LEVEL"); value != "" {
+		if err := cfg.LogLevel.UnmarshalText([]byte(value)); err != nil {
+			return Config{}, fmt.Errorf("parse LOG_LEVEL: %w", err)
 		}
-		cfg.WorkerCount = parsed
 	}
-
 	return cfg, nil
 }

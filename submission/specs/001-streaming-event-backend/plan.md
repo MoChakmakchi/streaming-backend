@@ -6,10 +6,10 @@
 
 ## Summary
 
-Build a self-contained Go service under `submission/` with separate API and worker binaries. The
-API validates and durably stores events in PostgreSQL, creates fall alarms synchronously, and
-serves queries and SSE. River jobs process heartbeat and presence projections. PostgreSQL remains
-the source of truth for raw events, projections, alarms, jobs, and restart recovery.
+Build a self-contained Go service under `submission/`. The API validates and durably stores events
+in PostgreSQL, derives health and occupancy from indexed event history, creates fall alarms
+synchronously, and serves queries and SSE. PostgreSQL remains the source of truth for events,
+alarms, and restart recovery.
 
 Implementation is delivered in five user-approved stages. Each stage ends at a manual verification
 gate and work does not continue until the user confirms the result.
@@ -18,21 +18,21 @@ gate and work does not continue until the user confirms the result.
 
 **Language/Version**: Go 1.27
 
-**Primary Dependencies**: Chi v5, pgx v5, and River with `riverpgxv5`; Go standard library for JSON, SSE, logging, and HTTP lifecycle. Exact versions are pinned in `go.mod` and `go.sum`.
+**Primary Dependencies**: Chi v5 and pgx v5; Go standard library for JSON, SSE, logging, and HTTP lifecycle. Exact versions are pinned in `go.mod` and `go.sum`.
 
-**Storage**: PostgreSQL 18 with persistent Docker storage; River tables in the same database
+**Storage**: PostgreSQL 18 with persistent Docker storage
 
 **Testing**: `go test`, `httptest`, `go test -race`, PostgreSQL integration tests, and the supplied generator/evaluator
 
 **Target Platform**: Linux containers through Docker Compose; local macOS/Linux development with Adminer for direct database inspection
 
-**Project Type**: HTTP service with separate API and background-worker executables
+**Project Type**: HTTP service
 
 **Performance Goals**: Sustain about 5,000 events/second; tolerate 50,000 events/second for 30-second bursts; deliver 95% of alarms within one second
 
-**Constraints**: Commit before acknowledgement; deterministic event-time results; no silent loss; bounded database and worker concurrency; retry-safe processing; persistent restart recovery
+**Constraints**: Commit before acknowledgement; deterministic event-time results; no silent loss; bounded database concurrency; retry-safe ingestion; persistent restart recovery
 
-**Scale/Scope**: 5,000 active devices plus unseen devices without configuration; one assignment deployment, one PostgreSQL database, one API process, and one worker process by default
+**Scale/Scope**: 5,000 active devices plus unseen devices without configuration; one assignment deployment, one PostgreSQL database, and one API process by default
 
 ## Constitution Check
 
@@ -41,16 +41,16 @@ gate and work does not continue until the user confirms the result.
 - **Lean implementation — PASS**: Only the accepted stack is used. SSE, JSON handling, lifecycle,
   and logging use the standard library. No generic repositories, speculative interfaces, or empty
   packages are planned.
-- **Durable boundaries — PASS**: Event storage and River enqueue share a transaction; fall event
-  and alarm storage share a transaction; projection update and River completion share a
-  transaction.
-- **Confirmed architecture — PASS**: The design follows ADRs 0001–0008 and the approved
-  `submission/` application root. No new service, database, cache, or broker is introduced.
+- **Durable boundaries — PASS**: Events commit before acknowledgement. Fall-event storage, alarm
+  deduplication, alarm storage, and notification share one transaction.
+- **Confirmed architecture — PASS**: The Stage 3 refinement is recorded in
+  `implementation-decisions.md`; ADRs remain unchanged as pre-build records. No new service,
+  database, cache, or broker is introduced.
 - **Focused verification — PASS**: Tests cover README behavior and ADR risks: ingestion
-  idempotency, ordering, late events, concurrent fall deduplication, transactional River behavior,
-  restart recovery, backpressure, and alarm latency.
-- **Protected records — PASS**: Planning artifacts elaborate accepted decisions. ADR 0005 was
-  changed only after explicit approval.
+  idempotency, ordering, late events, concurrent fall deduplication, restart recovery,
+  backpressure, and alarm latency.
+- **Protected records — PASS**: ADRs remain untouched; the approved implementation refinement is
+  recorded separately.
 
 ### Post-design gate
 
@@ -75,23 +75,21 @@ submission/specs/001-streaming-event-backend/
 ```text
 submission/
 ├── cmd/
-│   ├── api/
-│   │   └── main.go                 # API wiring and lifecycle
-│   └── worker/
-│       └── main.go                 # River worker wiring and lifecycle
+│   └── api/
+│       └── main.go                 # API wiring and lifecycle
 ├── internal/
-│   ├── config/                     # Environment configuration used by both binaries
+│   ├── config/                     # Environment configuration
 │   ├── event/                      # Event model and boundary validation
 │   ├── eventstore/                 # Append-only PostgreSQL event persistence
 │   ├── httpapi/                    # HTTP routes, handlers, and SSE transport
-│   ├── processing/                 # River job registration and dispatch
 │   └── features/
-│       ├── health/                 # Health projection and query
-│       ├── occupancy/              # Occupancy projection and query
+│       ├── health/                 # Health query
+│       ├── occupancy/              # Occupancy query
 │       └── alarms/                 # Fall deduplication, history, and live delivery
 ├── migrations/                         # Application SQL migrations
 ├── docs/
 │   ├── adr/                        # Existing accepted decisions
+│   ├── implementation-decisions.md # Refinements found during implementation
 │   └── api/
 │       └── openapi.yml             # Published API contract
 ├── test/
@@ -99,8 +97,7 @@ submission/
 ├── Makefile
 ├── deployment/
 │   ├── compose.yaml
-│   ├── Dockerfile.api                # API image
-│   └── Dockerfile.worker             # Worker image
+│   └── Dockerfile.api                # API image
 └── go.mod
 ```
 
@@ -109,25 +106,20 @@ owning stage needs them; do not pre-create every illustrated file. Tests stay be
 exercise, except load scenarios under `submission/test/load/`.
 
 Configuration is added with its first concrete consumer: API and database settings during
-ingestion, worker settings when the worker is introduced, and load-related tuning during the final
-pressure stage. Do not predefine configuration fields or helpers for later stages.
+ingestion and load-related tuning during the final pressure stage. Do not predefine configuration
+fields or helpers for later stages.
 
 ## Data and Transaction Design
 
 - Store every accepted event once in an append-only `events` table with a unique
   `(device_id, seq)` constraint.
-- In the ingest transaction, enqueue one River job only for a newly inserted heartbeat or presence
-  event. Schedule accepted future events for their event time. Motion, sleep-state, and network
-  events receive no job.
-- Keep only current health and occupancy state as projections. Calculate rolling availability and
-  occupancy percentages from indexed event history so late events correct results without repair
-  jobs or stored time buckets.
+- Calculate latest health, current occupancy, and rolling results from indexed event history.
+  Query cutoffs exclude accepted future events, while late events correct the next query without
+  repair work or stored time buckets.
 - For fall warnings, take a transaction-scoped PostgreSQL advisory lock for the room, store the raw
   event, check the three-second device-and-room window anchored to each existing alarm's source
   warning, create at most one alarm, and notify listeners in the same transaction. Duplicate
   warnings do not extend the window.
-- Workers update a projection and complete its River job in the same PostgreSQL transaction.
-  Conditional upserts make retries and out-of-order execution idempotent.
 - Use `LISTEN/NOTIFY` only to wake live-feed readers. Alarm rows and inclusive
   `GET /alarms?since=<ts>` queries provide recovery.
 
@@ -135,18 +127,18 @@ pressure stage. Do not predefine configuration fields or helpers for later stage
 
 ### Stage 1 — Event ingestion and persistence
 
-Create the submission scaffold, PostgreSQL setup, migrations, event validation, append-only event
-store, and transactional River enqueue. Verify valid, invalid, duplicate, late, future, and
-retryable-capacity cases. **Stop for manual confirmation.**
+Create the submission scaffold, PostgreSQL setup, migrations, event validation, and append-only
+event store. Verify valid, invalid, duplicate, late, future, and retryable-capacity cases. **Stop
+for manual confirmation.**
 
 ### Stage 2 — Device health
 
-Add heartbeat processing, idempotent latest-heartbeat projection, five-minute availability query,
-and late/out-of-order checks. **Stop for manual confirmation.**
+Add indexed latest-heartbeat and five-minute availability queries with late/out-of-order checks.
+**Stop for manual confirmation.**
 
 ### Stage 3 — Room occupancy
 
-Add presence processing, deterministic current state, and one-minute, five-minute, and one-hour
+Add deterministic current state and one-minute, five-minute, and one-hour
 occupied-duration queries that account for late transitions. **Stop for manual confirmation.**
 
 ### Stage 4 — Alarms
@@ -158,19 +150,16 @@ notifications, and one-second latency. **Stop for manual confirmation.**
 ### Stage 5 — Recovery, pressure, and final verification
 
 Add bounded concurrency, retryable overload responses, required observability, hard-restart tests,
-and baseline/burst/offline/adversarial validation. Confirm PostgreSQL and River migration behavior
+and baseline/burst/offline/adversarial validation. Confirm PostgreSQL migration behavior
 and complete the submission run instructions. **Stop for final manual confirmation.**
 
 ## Migration and Operations Plan
 
-- Apply the application SQL migration with `psql -v ON_ERROR_STOP=1` before either binary starts;
+- Apply the application SQL migration with `psql -v ON_ERROR_STOP=1` before the API starts;
   one idempotent initial migration is sufficient for the assignment.
-- Apply River migrations with the version-pinned River CLI before starting API or worker. Do not
-  race migrations from both processes.
-- Use separate bounded pgx pools for API and worker processes. Worker concurrency remains below
-  its pool capacity so River maintenance and ingestion/query traffic retain connections.
+- Use a bounded pgx pool so ingestion, queries, and alarm delivery retain connections under load.
 - Keep PostgreSQL durability settings enabled and store its data on a named volume.
-- Emit structured `slog` records and expose only the counters, latency summaries, backlog age, and
+- Emit structured `slog` records and expose only the counters, latency summaries, and
   saturation signals required by FR-030; do not introduce a monitoring platform.
 
 ## Verification Strategy

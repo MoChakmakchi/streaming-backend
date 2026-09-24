@@ -31,23 +31,12 @@ services:
       dockerfile: deployment/Dockerfile.api
     environment:
       DATABASE_URL: postgres://teton:teton@postgres:5432/teton?sslmode=disable
+      LOG_LEVEL: ${LOG_LEVEL:-info}
     depends_on:
       postgres:
         condition: service_healthy
     ports:
       - "8090:8080"
-
-  worker:
-    build:
-      context: ..
-      dockerfile: deployment/Dockerfile.worker
-    environment:
-      DATABASE_URL: postgres://teton:teton@postgres:5432/teton?sslmode=disable
-      DATABASE_MAX_CONNECTIONS: 16
-      WORKER_COUNT: 8
-    depends_on:
-      postgres:
-        condition: service_healthy
 
 volumes:
   postgres_data:

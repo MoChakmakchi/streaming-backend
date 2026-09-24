@@ -26,13 +26,11 @@ const (
 )
 
 type Event struct {
-	ID         int64
 	DeviceID   string
 	RoomID     string
 	Type       Type
 	Time       time.Time
 	Sequence   int64
-	ReceivedAt time.Time
 	InRoom     *bool
 	Magnitude  *float64
 	SleepState *string
@@ -90,7 +88,6 @@ func Decode(reader io.Reader, receivedAt time.Time) (Event, error) {
 		Type:       input.Type,
 		Time:       eventTime,
 		Sequence:   *input.Sequence,
-		ReceivedAt: receivedAt,
 		InRoom:     input.InRoom,
 		Magnitude:  input.Magnitude,
 		SleepState: input.SleepState,
@@ -142,23 +139,23 @@ func (e Event) Payload() ([]byte, error) {
 	case TypePresence:
 		payload = struct {
 			InRoom *bool `json:"in_room"`
-		}{e.InRoom}
+		}{InRoom: e.InRoom}
 	case TypeMotion:
 		payload = struct {
 			Magnitude *float64 `json:"magnitude"`
-		}{e.Magnitude}
+		}{Magnitude: e.Magnitude}
 	case TypeSleepState:
 		payload = struct {
 			State *string `json:"state"`
-		}{e.SleepState}
+		}{State: e.SleepState}
 	case TypeFallWarn:
 		payload = struct {
 			Confidence *float64 `json:"confidence"`
-		}{e.Confidence}
+		}{Confidence: e.Confidence}
 	case TypeNetStatus:
 		payload = struct {
 			RSSI *int `json:"rssi"`
-		}{e.RSSI}
+		}{RSSI: e.RSSI}
 	default:
 		return nil, fmt.Errorf("unsupported event type %q", e.Type)
 	}

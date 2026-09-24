@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: Teton Streaming Backend API
   version: 0.1.0
-  description: HTTP contract for event ingestion, projections, alarm history, and the live alarm feed.
+  description: HTTP contract for event ingestion, health and occupancy queries, alarm history, and the live alarm feed.
 servers:
   - url: http://localhost:8090
 

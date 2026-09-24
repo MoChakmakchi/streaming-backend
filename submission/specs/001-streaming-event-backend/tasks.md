@@ -28,8 +28,8 @@ the preceding stage.
 
 **Purpose**: Establish the self-contained Go submission without adding unused packages.
 
-- [X] T001 Initialize the Go 1.27 module and pin Chi, pgx, and River dependencies in `submission/go.mod` and `submission/go.sum`
-- [X] T002 [P] Add API and worker build images, PostgreSQL 18 with persistent storage, and Adminer in `submission/deployment/Dockerfile.api`, `submission/deployment/Dockerfile.worker`, `submission/.dockerignore`, and `submission/deployment/compose.yaml`
+- [X] T001 Initialize the Go 1.27 module and pin Chi and pgx dependencies in `submission/go.mod` and `submission/go.sum`
+- [X] T002 [P] Add the API build image, PostgreSQL 18 with persistent storage, and Adminer in `submission/deployment/Dockerfile.api`, `submission/.dockerignore`, and `submission/deployment/compose.yaml`
 - [X] T003 [P] Add lean build, migration, API, test, and cleanup targets in `submission/Makefile`
 
 ---
@@ -38,7 +38,7 @@ the preceding stage.
 
 **Goal**: Accept every valid in-window event durably, reject invalid input explicitly, and make retries idempotent.
 
-**Independent Test**: Submit valid, malformed, duplicate, boundary, late, future, and capacity-limited requests; verify only accepted events persist, only heartbeat/presence events receive one River job, and committed data survives an API restart.
+**Independent Test**: Submit valid, malformed, duplicate, boundary, late, future, and capacity-limited requests; verify only accepted events persist and committed data survives an API restart.
 
 ### Stage configuration
 
@@ -48,16 +48,16 @@ the preceding stage.
 
 - [X] T005 [P] [US1] Add event-schema and inclusive ±1-hour boundary tests required by FR-001–FR-003 in `submission/internal/event/model_test.go`
 - [X] T006 [P] [US1] Add POST `/events` response tests for accepted, duplicate, malformed, out-of-window, and retryable `503` cases in `submission/internal/httpapi/events_test.go`
-- [X] T007 [P] [US1] Add PostgreSQL integration tests for `(device_id, seq)` idempotency, atomic River enqueue, non-job event types, and retry after commit-before-response failure in `submission/internal/eventstore/store_test.go`
+- [X] T007 [P] [US1] Add PostgreSQL integration tests for `(device_id, seq)` idempotency, durable insertion, and retry after commit-before-response failure in `submission/internal/eventstore/store_test.go`
 
 ### Implementation
 
-- [X] T008 [US1] Create the single idempotent application schema with events, health, occupancy, alarms, required constraints, and focused indexes in `submission/migrations/001_initial.sql`, and add the pinned River migration command to `submission/Makefile`
+- [X] T008 [US1] Create the single idempotent application schema with events, alarms, required constraints, and focused indexes in `submission/migrations/001_initial.sql`
 - [X] T009 [US1] Implement the six event variants, strict JSON decoding inputs, field validation, and timestamp-window validation in `submission/internal/event/model.go`
 - [X] T010 [US1] Implement append-only transactional insertion, duplicate lookup, and event reads in `submission/internal/eventstore/store.go`
-- [X] T011 [US1] Implement River projection-job arguments and transactional heartbeat/presence enqueueing, including future scheduling, in `submission/internal/processing/jobs.go`
+- [X] T011 [US1] Implement the transaction-bound ingestion operation in `submission/internal/eventstore/store.go`
 - [X] T012 [US1] Implement bounded POST `/events` ingestion with commit-before-acknowledgement, duplicate receipts, validation errors, and `503 Retry-After` in `submission/internal/httpapi/events.go` and register it in `submission/internal/httpapi/server.go`
-- [X] T013 [US1] Wire configuration, pgx, the insert-only River client, HTTP lifecycle, and graceful API shutdown in `submission/cmd/api/main.go`
+- [X] T013 [US1] Wire configuration, pgx, HTTP lifecycle, and graceful API shutdown in `submission/cmd/api/main.go`
 - [X] T014 [US1] Hand the Stage 1 checklist in `submission/specs/001-streaming-event-backend/quickstart.md` to the user and wait for explicit confirmation before T015
 
 **Checkpoint**: User Story 1 is independently usable as the durable-ingestion MVP.
@@ -68,22 +68,22 @@ the preceding stage.
 
 **Goal**: Return the latest event-time heartbeat and correct five-minute availability.
 
-**Independent Test**: Process heartbeat histories in different arrival and worker orders, including late and future events, and verify the latest heartbeat never moves backward and availability equals distinct in-window heartbeats divided by 300.
+**Independent Test**: Insert heartbeat histories in different arrival orders, including late and future events, and verify the latest heartbeat never moves backward and availability equals distinct in-window heartbeats divided by 300.
 
 ### Focused tests
 
-- [X] T015 [P] [US2] Add PostgreSQL tests for heartbeat ordering, late-window contribution, future exclusion, retry idempotency, and transactional River completion in `submission/internal/features/health/service_test.go`
+- [X] T015 [P] [US2] Add PostgreSQL tests for heartbeat ordering, late-window contribution, future exclusion, and ingestion idempotency in `submission/internal/features/health/service_test.go`
 - [X] T016 [P] [US2] Add GET `/devices/{device_id}/health` compatibility and unknown-device tests in `submission/internal/httpapi/health_test.go`
 
 ### Implementation
 
 - [X] T017 [US2] Define device-health values and response mapping in `submission/internal/features/health/model.go`
-- [X] T018 [US2] Implement conditional latest-heartbeat upsert and five-minute distinct-heartbeat query in `submission/internal/features/health/store.go`
-- [X] T019 [US2] Implement health projection and query rules in `submission/internal/features/health/service.go`
-- [X] T020 [US2] Implement the River worker that loads a heartbeat event, updates health, and calls `JobCompleteTx` in the same transaction in `submission/internal/processing/worker.go`
-- [X] T021 [US2] Add only the required River and worker configuration, wire the worker process into its existing container, and add its commands in `submission/internal/config/config.go`, `submission/cmd/worker/main.go`, `submission/deployment/compose.yaml`, and `submission/Makefile`
+- [X] T018 [US2] Implement indexed latest-heartbeat and five-minute heartbeat queries in `submission/internal/features/health/store.go`
+- [X] T019 [US2] Implement health calculation and not-found rules in `submission/internal/features/health/service.go`
+- [X] T020 [US2] Align the source tree with the single API runtime and keep feature packages limited to query behavior
+- [X] T021 [US2] Add structured API lifecycle and request logging with configurable log level in `submission/internal/config/config.go`, `submission/cmd/api/main.go`, `submission/deployment/compose.yaml`, and `submission/internal/httpapi/server.go`
 - [X] T022 [US2] Implement and register GET `/devices/{device_id}/health` in `submission/internal/httpapi/health.go` and `submission/internal/httpapi/server.go`
-- [ ] T023 [US2] Hand the Stage 2 checklist in `submission/specs/001-streaming-event-backend/quickstart.md` to the user and wait for explicit confirmation before T024
+- [X] T023 [US2] Hand the Stage 2 checklist in `submission/specs/001-streaming-event-backend/quickstart.md` to the user and wait for explicit confirmation before T024
 
 **Checkpoint**: The health half of User Story 2 is correct and manually confirmed.
 
@@ -97,16 +97,16 @@ the preceding stage.
 
 ### Focused tests
 
-- [ ] T024 [P] [US2] Add PostgreSQL tests for not found before the first applicable presence event, pre-first-event window handling, deterministic ties, concurrent late-event correction for one room, future exclusion, all three windows, and retry idempotency in `submission/internal/features/occupancy/service_test.go`
-- [ ] T025 [P] [US2] Add GET `/rooms/{room_id}/occupancy` contract tests for supported windows, invalid windows, and unknown rooms in `submission/internal/httpapi/occupancy_test.go`
+- [X] T024 [P] [US2] Add PostgreSQL tests for not found before the first applicable presence event, pre-first-event window handling, deterministic ties, concurrent late-event correction for one room, future exclusion, and all three windows in `submission/internal/features/occupancy/service_test.go`
+- [X] T025 [P] [US2] Add GET `/rooms/{room_id}/occupancy` contract tests for supported windows, invalid windows, and unknown rooms in `submission/internal/httpapi/occupancy_test.go`
 
 ### Implementation
 
-- [ ] T026 [US2] Define room-occupancy values and supported windows in `submission/internal/features/occupancy/model.go`
-- [ ] T027 [US2] Implement conditional current-state upsert and ordered occupied-duration queries using the state at the window start in `submission/internal/features/occupancy/store.go`
-- [ ] T028 [US2] Implement occupancy projection and percentage rules in `submission/internal/features/occupancy/service.go`
-- [ ] T029 [US2] Extend River dispatch to process presence events and complete their projection transaction atomically in `submission/internal/processing/worker.go`
-- [ ] T030 [US2] Implement and register GET `/rooms/{room_id}/occupancy` in `submission/internal/httpapi/occupancy.go` and `submission/internal/httpapi/server.go`
+- [X] T026 [US2] Define room-occupancy values and supported windows in `submission/internal/features/occupancy/model.go`
+- [X] T027 [US2] Implement indexed current-state and occupied-duration queries using the state at the window start in `submission/internal/features/occupancy/store.go`
+- [X] T028 [US2] Implement occupancy percentage and not-found rules in `submission/internal/features/occupancy/service.go`
+- [X] T029 [US2] Record the Stage 3 architecture refinement in `submission/docs/implementation-decisions.md` and align the feature artifacts
+- [X] T030 [US2] Implement and register GET `/rooms/{room_id}/occupancy` in `submission/internal/httpapi/occupancy.go` and `submission/internal/httpapi/server.go`
 - [ ] T031 [US2] Hand the Stage 3 checklist in `submission/specs/001-streaming-event-backend/quickstart.md` to the user and wait for explicit confirmation before T032
 
 **Checkpoint**: User Story 2 is complete and manually confirmed.
@@ -117,7 +117,7 @@ the preceding stage.
 
 **Goal**: Persist and publish each logical fall promptly, with history-based recovery after disconnection.
 
-**Independent Test**: Submit concurrent distinct falls and same-device/room warnings within three event-time seconds while River is backlogged; verify one logical alarm per deduplication group, per-room creation order, original timestamps, sub-second p95 delivery, and inclusive history recovery.
+**Independent Test**: Submit concurrent distinct falls and same-device/room warnings within three event-time seconds during an ingestion burst; verify one logical alarm per deduplication group, per-room creation order, original timestamps, sub-second p95 delivery, and inclusive history recovery.
 
 ### Focused tests
 
@@ -141,25 +141,25 @@ the preceding stage.
 
 ## Phase 6: User Story 4 — Pressure and Restart Correctness (Priority: P2)
 
-**Goal**: Preserve correctness under burst load, backlog, retries, process failure, and restart.
+**Goal**: Preserve correctness under burst load, retries, process failure, and restart.
 
-**Independent Test**: Run baseline, burst, offline replay, capacity exhaustion, and hard-restart scenarios; compare durable events, projections, alarms, recovery behavior, and latency with ground truth.
+**Independent Test**: Run baseline, burst, offline replay, capacity exhaustion, and hard-restart scenarios; compare durable events, query results, alarms, recovery behavior, and latency with ground truth.
 
 ### Focused tests
 
 - [ ] T042 [P] [US4] Add saturation and retry-storm tests proving bounded admission, explicit `503 Retry-After`, and no false acknowledgement in `submission/internal/httpapi/backpressure_test.go`
-- [ ] T043 [P] [US4] Add failure-boundary tests for API commit-before-response, worker pre/post-commit termination, exhausted River retries remaining visible through an operator signal, pending-job recovery, event-log replay, and migration/job-payload compatibility across restart in `submission/internal/processing/restart_test.go`
+- [ ] T043 [P] [US4] Add failure-boundary checks for API commit-before-response, alarm commit-before-notify, persistent event history, and migration compatibility across restart in `submission/test/load/restart.sh`
 
 ### Implementation and verification
 
-- [ ] T044 [US4] Implement idempotent derived-state rebuilding from the accepted event log through existing feature services in `submission/internal/processing/replay.go`
-- [ ] T045 [US4] Tune separate API and worker pgx pools, request admission, ingest deadlines, and worker counts through `submission/internal/config/config.go`, `submission/cmd/api/main.go`, and `submission/cmd/worker/main.go`
-- [ ] T046 [P] [US4] Implement the required counters, latency summaries, backlog age, projection lag, retry, and saturation reporting in the owning packages, with HTTP export in `submission/internal/httpapi/metrics.go`; add shared metric plumbing only if the implementation requires it
-- [ ] T047 [US4] Add structured ingest, processing, retry, alarm, and shutdown instrumentation in `submission/internal/httpapi/events.go`, `submission/internal/processing/worker.go`, and `submission/internal/features/alarms/service.go`
-- [ ] T048 [P] [US4] Implement a five-minute 5,000-events/second baseline and two 30-second 50,000-events/second bursts; prove River backlog during alarm p50/p95 measurement, then verify health and occupancy match accepted-event ground truth after the backlog drains in `submission/test/load/main.go`
-- [ ] T049 [P] [US4] Implement the hard-kill, restart-order, persistent-volume, event-log-replay, and backlog-recovery scenario in `submission/test/load/restart.sh`
-- [ ] T050 [US4] Add final integration, race, load, restart, replay, and evaluator targets to `submission/Makefile`
-- [ ] T051 [US4] Run the automated Stage 5 targets from `submission/Makefile`, including the exhausted-retry signal, post-burst projection catch-up, and ingestion and query verification for a 5,001st device, then prepare the metrics and recovery results for user review
+- [ ] T044 [US4] Verify health and occupancy are immediately reconstructed from committed event history after restart in `submission/test/load/restart.sh`
+- [ ] T045 [US4] Tune the API pgx pool, request admission, and ingest deadlines through `submission/internal/config/config.go` and `submission/cmd/api/main.go`
+- [ ] T046 [P] [US4] Implement the required counters, latency summaries, and saturation reporting in the owning packages, with HTTP export in `submission/internal/httpapi/metrics.go`; add shared metric plumbing only if the implementation requires it
+- [ ] T047 [US4] Add structured ingest, query, alarm, and shutdown instrumentation in `submission/internal/httpapi/events.go`, the health and occupancy packages, and `submission/internal/features/alarms/service.go`
+- [ ] T048 [P] [US4] Implement a five-minute 5,000-events/second baseline and two 30-second 50,000-events/second bursts, then verify alarm latency and health and occupancy results against accepted-event ground truth in `submission/test/load/main.go`
+- [ ] T049 [P] [US4] Implement the hard-kill, restart-order, persistent-volume, and query-recovery scenario in `submission/test/load/restart.sh`
+- [ ] T050 [US4] Add final integration, race, load, restart, and evaluator targets to `submission/Makefile`
+- [ ] T051 [US4] Run the automated Stage 5 targets from `submission/Makefile`, including ingestion and query verification for a 5,001st device, then prepare the metrics and recovery results for user review
 
 **Checkpoint**: All four user stories meet the assignment's correctness and performance conditions.
 
@@ -196,9 +196,9 @@ Setup
 ### User-story dependencies
 
 - **US1** depends only on Setup and is the MVP.
-- **US2 Health** depends on US1's durable events and River enqueueing.
-- **US2 Occupancy** depends on the confirmed worker pattern from US2 Health.
-- **US3** depends on US1 ingestion but remains outside the River processing path.
+- **US2 Health** depends on US1's durable indexed events.
+- **US2 Occupancy** depends on US1's durable indexed events.
+- **US3** depends on US1 ingestion.
 - **US4** validates and tunes all preceding stories together.
 
 ### Within each story
@@ -206,7 +206,7 @@ Setup
 1. Add only the focused tests named for README or ADR risks.
 2. Implement models and persistence.
 3. Implement feature behavior and transaction boundaries.
-4. Add HTTP or worker integration.
+4. Add HTTP integration.
 5. Run the quickstart checks and stop at the manual gate.
 
 ## Parallel Opportunities
@@ -223,13 +223,13 @@ Setup
 ```text
 T005: Event validation and timestamp-boundary tests
 T006: HTTP ingestion contract and backpressure tests
-T007: Transactional persistence and River enqueue tests
+T007: Transactional persistence and idempotency tests
 ```
 
 ### Parallel example: US2
 
 ```text
-T015: Health persistence and processing tests
+T015: Health event-history query tests
 T016: Health HTTP contract tests
 
 After the health gate:
@@ -261,7 +261,7 @@ T049: Restart runner
 
 1. Complete Setup.
 2. Complete US1 through T014.
-3. Stop and manually verify durable ingestion before adding projections.
+3. Stop and manually verify durable ingestion before adding queries.
 
 ### Incremental delivery
 
@@ -278,4 +278,5 @@ T049: Restart runner
 - Task labels map directly to the specification user stories.
 - The initial migration is owned by US1 and creates the complete known schema once.
 - Files and folders are added only when their task requires them.
-- Decision records and specifications remain unchanged unless the user separately approves an edit.
+- ADRs remain unchanged as pre-build records. Approved implementation refinements are recorded in
+  `submission/docs/implementation-decisions.md` and reflected in the active specification.

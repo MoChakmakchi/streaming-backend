@@ -45,8 +45,8 @@ As a care-system consumer, I need current device health and room occupancy so I 
 
 1. **Given** heartbeat events for a device, **When** health is queried, **Then** the newest event-time heartbeat and five-minute availability are returned.
 2. **Given** presence transitions for a room, **When** occupancy is queried for one minute, five minutes, or one hour, **Then** the current state and occupied percentage for that window are returned.
-3. **Given** historical heartbeat or presence events arrive late, **When** the affected state is queried after processing, **Then** the result reflects the corrected event-time history.
-4. **Given** events are processed concurrently in different orders, **When** the same query cutoff is used, **Then** the resulting health and occupancy state is identical.
+3. **Given** historical heartbeat or presence events arrive late, **When** the affected state is queried after acceptance, **Then** the result reflects the corrected event-time history.
+4. **Given** events are accepted concurrently in different arrival orders, **When** the same query cutoff is used, **Then** the resulting health and occupancy state is identical.
 
 ---
 
@@ -56,7 +56,7 @@ As an alarm-feed consumer, I need each physical fall warning delivered promptly 
 
 **Why this priority**: Fall warnings are safety-critical and have the strictest latency requirement.
 
-**Independent Test**: Submit distinct falls and sensor-jitter copies while the normal processing path is backlogged, disconnect and reconnect the consumer, and verify the distinct alarm set, order, timestamps, and delivery latency.
+**Independent Test**: Submit distinct falls and sensor-jitter copies during an ingestion burst, disconnect and reconnect the consumer, and verify the distinct alarm set, order, timestamps, and delivery latency.
 
 **Acceptance Scenarios**:
 
@@ -77,8 +77,8 @@ As a service operator, I need ingestion, queries, and alarms to remain correct d
 
 **Acceptance Scenarios**:
 
-1. **Given** a 30-second ten-times ingest burst, **When** normal processing falls behind, **Then** accepted events remain durable and fall alarms continue to meet their latency target.
-2. **Given** the service is hard-killed after accepting events, **When** it restarts, **Then** committed health, occupancy, alarms, and pending work recover without duplicate effects.
+1. **Given** a 30-second ten-times ingest burst, **When** ingestion is under pressure, **Then** accepted events remain durable and fall alarms continue to meet their latency target.
+2. **Given** the service is hard-killed after accepting events, **When** it restarts, **Then** committed events and alarms recover and health and occupancy remain derivable without duplicate effects.
 3. **Given** capacity is exhausted before an event can be accepted, **When** the request deadline is reached, **Then** the event is rejected explicitly as retryable rather than reported as accepted.
 4. **Given** a new device begins sending valid events, **When** those events arrive, **Then** the device is handled without redeployment or pre-registration.
 
@@ -92,8 +92,6 @@ As a service operator, I need ingestion, queries, and alarms to remain correct d
 - A fall warning is committed while no live-feed consumer is connected.
 - A consumer reconnects at a boundary where an alarm may already have been delivered.
 - A process stops after committing an event but before returning its acceptance response.
-- A worker stops before or after committing a derived-state update.
-- Pending work exhausts its automatic retries.
 - The notification channel disconnects while durable alarms continue to be created.
 - An unknown device or room is queried before it has any accepted events.
 
@@ -111,7 +109,7 @@ The feature includes event ingestion, durable event history, device-health and r
 - **FR-004**: The system MUST make an accepted event durable before confirming acceptance.
 - **FR-005**: The system MUST treat repeated submissions with the same `(device_id, seq)` as one emitted event and MUST NOT create duplicate derived effects.
 - **FR-006**: The system MUST retain accepted motion, sleep-state, and network-status events even though they produce no required output in the initial scope.
-- **FR-007**: The system MUST use event timestamp, not arrival or processing order, as the authoritative order for health and occupancy.
+- **FR-007**: The system MUST use event timestamp, not arrival or insertion order, as the authoritative order for health and occupancy.
 - **FR-008**: The system MUST order equal-timestamp events from one device by sequence number and MUST deterministically order equal-timestamp room-presence events by device identifier and sequence number.
 - **FR-009**: Current-state and rolling-window results MUST exclude accepted future events until their event timestamp is reached.
 - **FR-010**: Device health MUST expose the latest heartbeat at or before query time.
@@ -127,14 +125,14 @@ The feature includes event ingestion, durable event history, device-health and r
 - **FR-020**: The live alarm feed MUST expose alarms in durable publication order and preserve that order within each room.
 - **FR-021**: `GET /alarms?since=<ts>` MUST return alarms whose durable creation timestamp is greater than or equal to `since`.
 - **FR-022**: Duplicate alarm delivery around reconnection and history-query boundaries MUST retain the same stable alarm identifier so consumers can deduplicate safely.
-- **FR-023**: Temporary processing backlog MUST delay work without losing any event whose acceptance was confirmed.
+- **FR-023**: Temporary ingestion pressure MUST NOT lose any event whose acceptance was confirmed.
 - **FR-024**: If an event cannot be accepted before its request deadline, the system MUST reject it explicitly as retryable and MUST NOT report successful acceptance.
-- **FR-025**: A restart MUST recover committed health, occupancy, alarms, and accepted work that was not yet processed.
-- **FR-026**: Retried or recovered processing MUST be idempotent and MUST NOT duplicate state changes or logical alarms.
+- **FR-025**: A restart MUST recover committed events and alarms, from which health and occupancy remain queryable.
+- **FR-026**: Retried ingestion and alarm delivery MUST NOT duplicate accepted events or logical alarms.
 - **FR-027**: A missed transient alarm notification MUST NOT prevent later retrieval of the persisted alarm.
 - **FR-028**: The system MUST handle new device and room identifiers without pre-registration or redeployment.
 - **FR-029**: Queries for unknown devices or rooms MUST return an explicit not-found result rather than fabricated state.
-- **FR-030**: The system MUST expose accepted and rejected event counts, ingest latency, processing backlog and age, projection lag, retry counts, alarm-delivery latency, and resource-saturation signals.
+- **FR-030**: The system MUST expose accepted and rejected event counts, ingest and query latency, alarm-delivery latency, and resource-saturation signals.
 
 ### Key Entities
 
@@ -150,13 +148,13 @@ The feature includes event ingestion, durable event history, device-health and r
 
 - **SC-001**: The system ingests events from 5,000 devices at approximately 5,000 events per second for five minutes with no acknowledged event missing from durable history.
 - **SC-002**: During each 50,000-events-per-second burst lasting 30 seconds, 95% of distinct fall alarms are available to feed consumers within one second of ingestion.
-- **SC-003**: For baseline, out-of-order, offline-replay, and concurrent-processing scenarios, every sampled health and occupancy result matches the result calculated from accepted events ordered by event time.
+- **SC-003**: For baseline, out-of-order, offline-replay, and concurrent-ingestion scenarios, every sampled health and occupancy result matches the result calculated from accepted events ordered by event time.
 - **SC-004**: The number of persisted logical alarms matches the number of distinct physical falls in the evaluation input, with no missing or extra alarms.
-- **SC-005**: After a hard restart, all previously committed state is queryable and all pending accepted work resumes without a duplicate logical effect.
+- **SC-005**: After a hard restart, all previously committed events and alarms remain queryable without a duplicate logical effect.
 - **SC-006**: A reconnecting consumer retrieves every missed alarm from its last alarm creation timestamp; duplicates are allowed, missing alarms are not.
 - **SC-007**: Events exactly on either one-hour acceptance boundary are accepted, while events immediately outside either boundary are rejected.
 - **SC-008**: A 5,001st device is ingested and becomes queryable without configuration changes or redeployment.
-- **SC-009**: Operators can determine from exposed signals whether ingestion, processing, projections, or alarm delivery is delayed or failing.
+- **SC-009**: Operators can determine from exposed signals whether ingestion, queries, or alarm delivery is delayed or failing.
 
 ## Assumptions
 

@@ -9,11 +9,13 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 )
 
-func NewServer(events, health, occupancy http.Handler) http.Handler {
+func NewServer(events, health, occupancy, alarmHistory, alarmStream http.Handler) http.Handler {
 	router := chi.NewRouter()
 	router.Method(http.MethodPost, "/events", events)
 	router.Method(http.MethodGet, "/devices/{device_id}/health", health)
 	router.Method(http.MethodGet, "/rooms/{room_id}/occupancy", occupancy)
+	router.Method(http.MethodGet, "/alarms", alarmHistory)
+	router.Method(http.MethodGet, "/alarms/stream", alarmStream)
 	return router
 }
 

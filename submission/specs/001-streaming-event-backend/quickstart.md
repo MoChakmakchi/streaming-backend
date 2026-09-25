@@ -127,8 +127,7 @@ In one terminal, open the SSE stream:
 curl -N http://localhost:8090/alarms/stream
 ```
 
-In another terminal, post a fall warning using a current timestamp. Post a second warning from the
-same device and room within three event-time seconds but with a different sequence number.
+In another terminal, post a fall warning using a current timestamp. Post a second warning from the same device and room within three event-time seconds but with a different sequence number.
 
 Expected: the stream emits one `alarm` event and history contains one logical alarm:
 
@@ -136,8 +135,7 @@ Expected: the stream emits one `alarm` event and history contains one logical al
 curl 'http://localhost:8090/alarms?since=0'
 ```
 
-Record its `created_at`, disconnect the stream, create another alarm, reconnect, and query with the
-recorded value:
+Record its `created_at`, disconnect the stream, create another alarm, reconnect, and query with the recorded value:
 
 ```bash
 curl 'http://localhost:8090/alarms?since=<created_at>'
@@ -151,8 +149,7 @@ cd submission
 make test-integration TEST=alarms
 ```
 
-**Manual gate:** confirm deduplication, history recovery, per-room order, and SSE delivery before
-Stage 5.
+**Manual gate:** confirm deduplication, history recovery, per-room order, and SSE delivery before Stage 5.
 
 ## Stage 5 — Restart and pressure
 

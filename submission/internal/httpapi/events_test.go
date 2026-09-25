@@ -66,7 +66,7 @@ func TestPostEventsResponses(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			handler := NewEventsHandler(test.ingest, 1, time.Second, func() time.Time { return now })
+			handler := NewEventsHandler(test.ingest, test.ingest, 1, time.Second, func() time.Time { return now })
 			request := httptest.NewRequest(http.MethodPost, "/events", strings.NewReader(test.body))
 			response := httptest.NewRecorder()
 			handler.ServeHTTP(response, request)
@@ -81,5 +81,31 @@ func TestPostEventsResponses(t *testing.T) {
 				t.Fatalf("Retry-After = %q, want 1", response.Header().Get("Retry-After"))
 			}
 		})
+	}
+}
+
+func TestPostFallUsesAlarmIngest(t *testing.T) {
+	now := time.Date(2026, 5, 23, 18, 53, 49, 0, time.UTC)
+	normalIngest := func(context.Context, event.Event, time.Time) (eventstore.InsertResult, error) {
+		t.Fatal("normal event ingest called for fall warning")
+		return eventstore.InsertResult{}, nil
+	}
+	alarmIngest := func(_ context.Context, input event.Event, receivedAt time.Time) (eventstore.InsertResult, error) {
+		if input.Type != event.TypeFallWarn || !receivedAt.Equal(now) {
+			t.Fatalf("alarm ingest called with %#v at %s", input, receivedAt)
+		}
+		return eventstore.InsertResult{EventID: 42, Inserted: true}, nil
+	}
+	handler := NewEventsHandler(normalIngest, alarmIngest, 1, time.Second, func() time.Time { return now })
+	request := httptest.NewRequest(
+		http.MethodPost,
+		"/events",
+		strings.NewReader(`{"device_id":"dev_1","room_id":"room_1","type":"fall_warn","ts":"`+
+			now.Format(time.RFC3339Nano)+`","seq":1,"confidence":0.92}`),
+	)
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusAccepted {
+		t.Fatalf("status = %d, want 202; body = %s", response.Code, response.Body.String())
 	}
 }

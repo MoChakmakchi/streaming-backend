@@ -38,6 +38,8 @@ func TestGetRoomOccupancy(t *testing.T) {
 		http.NotFoundHandler(),
 		http.NotFoundHandler(),
 		occupancyHandler,
+		http.NotFoundHandler(),
+		http.NotFoundHandler(),
 	)
 
 	for _, test := range []struct {

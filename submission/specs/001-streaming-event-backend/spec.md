@@ -92,7 +92,7 @@ As a service operator, I need ingestion, queries, and alarms to remain correct d
 - A fall warning is committed while no live-feed consumer is connected.
 - A consumer reconnects at a boundary where an alarm may already have been delivered.
 - A process stops after committing an event but before returning its acceptance response.
-- The notification channel disconnects while durable alarms continue to be created.
+- A process stops after committing an alarm but before publishing it to the live feed.
 - An unknown device or room is queried before it has any accepted events.
 
 ## Requirements *(mandatory)*
@@ -129,7 +129,7 @@ The feature includes event ingestion, durable event history, device-health and r
 - **FR-024**: If an event cannot be accepted before its request deadline, the system MUST reject it explicitly as retryable and MUST NOT report successful acceptance.
 - **FR-025**: A restart MUST recover committed events and alarms, from which health and occupancy remain queryable.
 - **FR-026**: Retried ingestion and alarm delivery MUST NOT duplicate accepted events or logical alarms.
-- **FR-027**: A missed transient alarm notification MUST NOT prevent later retrieval of the persisted alarm.
+- **FR-027**: A missed live alarm delivery MUST NOT prevent later retrieval of the persisted alarm.
 - **FR-028**: The system MUST handle new device and room identifiers without pre-registration or redeployment.
 - **FR-029**: Queries for unknown devices or rooms MUST return an explicit not-found result rather than fabricated state.
 - **FR-030**: The system MUST expose accepted and rejected event counts, ingest and query latency, alarm-delivery latency, and resource-saturation signals.

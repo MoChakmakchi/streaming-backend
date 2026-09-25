@@ -62,20 +62,20 @@ extension and obscures the accepted rule.
 Sources: [PostgreSQL advisory locks](https://www.postgresql.org/docs/current/explicit-locking.html),
 [transaction isolation](https://www.postgresql.org/docs/current/transaction-iso.html)
 
-## Alarm notification and recovery
+## Alarm live delivery and recovery
 
-**Decision**: Persist the alarm and issue `NOTIFY` in the same transaction. SSE listeners query
-durable alarms after a wake-up and periodically check for missed notifications. Reconnecting
-clients use inclusive `GET /alarms?since=<ts>` over alarm creation time.
+**Decision**: After an alarm commits, signal one in-process SSE broadcaster. The broadcaster reads
+unseen alarm rows in durable creation order before publishing them. Reconnecting clients use
+inclusive `GET /alarms?since=<ts>` over alarm creation time.
 
-**Rationale**: PostgreSQL delivers notifications only after commit, but notifications are not
-durable. The alarm table therefore remains the source of truth and stable IDs make inclusive
-boundary duplicates harmless.
+**Rationale**: The assignment runs one API process, so database notifications and periodic polling
+add no required capability. Reading after an in-process wake-up preserves durable order across
+concurrent request goroutines. The alarm table remains the source of truth if a client disconnects
+or the process stops between commit and publication. Stable IDs make inclusive boundary duplicates
+harmless.
 
-**Alternatives considered**: Treating notifications as delivery can lose alarms during disconnects.
-
-Sources: [PostgreSQL NOTIFY](https://www.postgresql.org/docs/current/sql-notify.html),
-[LISTEN](https://www.postgresql.org/docs/current/sql-listen.html)
+**Alternatives considered**: PostgreSQL `LISTEN/NOTIFY` or a broker can provide cross-process
+wake-ups if API replicas are introduced later.
 
 ## SSE and HTTP lifecycle
 

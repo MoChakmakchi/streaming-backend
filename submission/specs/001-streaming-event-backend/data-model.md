@@ -81,9 +81,10 @@ Indexes:
 
 Fall ingest takes a transaction-scoped room advisory lock. If the warning is within three seconds
 of the source warning for an existing alarm from the same device and room, only the raw event is
-stored. Otherwise the transaction inserts the alarm and sends a PostgreSQL notification. The
-first accepted warning that creates the logical alarm supplies its timestamp and confidence;
-duplicate warnings do not extend the window.
+stored. Otherwise the transaction inserts the alarm. After commit, the service publishes the new
+alarm through a broadcaster that reads unseen alarms in durable creation order. The first accepted
+warning that creates the logical alarm supplies its timestamp and confidence; duplicate warnings
+do not extend the window.
 
 ## Relationships
 
@@ -103,8 +104,8 @@ A duplicate returns the existing event identity.
 1. Begin transaction and take the room advisory lock.
 2. Insert the raw event, returning the existing identity for an ingestion retry.
 3. For a new event, check the three-second window anchored to each existing alarm's source warning.
-4. Insert and notify only when no logical alarm matches.
-5. Commit, then acknowledge.
+4. Insert an alarm only when no logical alarm matches.
+5. Commit, signal live publication when an alarm was created, then acknowledge.
 
 ## State Transitions
 

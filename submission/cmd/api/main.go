@@ -15,6 +15,7 @@ import (
 
 	"teton/internal/config"
 	"teton/internal/eventstore"
+	"teton/internal/features/alarms"
 	"teton/internal/features/health"
 	"teton/internal/features/occupancy"
 	"teton/internal/httpapi"
@@ -53,21 +54,36 @@ func run() error {
 	}
 
 	events := eventstore.New(pool)
+	alarmFeed, err := alarms.NewFeed(ctx, pool)
+	if err != nil {
+		return fmt.Errorf("start alarm feed: %w", err)
+	}
+	defer alarmFeed.Close()
+	alarmService := alarms.NewService(pool, alarmFeed)
 	healthService := health.NewService(pool)
 	occupancyService := occupancy.NewService(pool)
 	eventsHandler := httpapi.NewEventsHandler(
 		events.Ingest,
+		alarmService.Ingest,
 		int(cfg.DatabaseMaxConn),
 		cfg.IngestDeadline,
 		time.Now,
 	)
 	healthHandler := httpapi.NewHealthHandler(healthService.Get, time.Now)
 	occupancyHandler := httpapi.NewOccupancyHandler(occupancyService.Get, time.Now)
+	alarmHistoryHandler := httpapi.NewAlarmHistoryHandler(alarmService.List)
+	alarmStreamHandler := httpapi.NewAlarmStreamHandler(alarmFeed.Subscribe)
 	server := &http.Server{
 		Addr: cfg.HTTPAddr,
 		Handler: httpapi.LogRequests(
 			logger,
-			httpapi.NewServer(eventsHandler, healthHandler, occupancyHandler),
+			httpapi.NewServer(
+				eventsHandler,
+				healthHandler,
+				occupancyHandler,
+				alarmHistoryHandler,
+				alarmStreamHandler,
+			),
 		),
 		ReadHeaderTimeout: 5 * time.Second,
 	}

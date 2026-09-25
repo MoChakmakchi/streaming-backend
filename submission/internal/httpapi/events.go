@@ -14,23 +14,26 @@ import (
 type ingestFunc func(context.Context, event.Event, time.Time) (eventstore.InsertResult, error)
 
 type eventsHandler struct {
-	ingest   ingestFunc
-	capacity chan struct{}
-	deadline time.Duration
-	now      func() time.Time
+	ingest     ingestFunc
+	ingestFall ingestFunc
+	capacity   chan struct{}
+	deadline   time.Duration
+	now        func() time.Time
 }
 
 func NewEventsHandler(
 	ingest ingestFunc,
+	ingestFall ingestFunc,
 	maxConcurrent int,
 	deadline time.Duration,
 	now func() time.Time,
 ) http.Handler {
 	return &eventsHandler{
-		ingest:   ingest,
-		capacity: make(chan struct{}, maxConcurrent),
-		deadline: deadline,
-		now:      now,
+		ingest:     ingest,
+		ingestFall: ingestFall,
+		capacity:   make(chan struct{}, maxConcurrent),
+		deadline:   deadline,
+		now:        now,
 	}
 }
 
@@ -59,7 +62,11 @@ func (h *eventsHandler) ServeHTTP(response http.ResponseWriter, request *http.Re
 		return
 	}
 
-	result, err := h.ingest(ctx, input, receivedAt)
+	ingest := h.ingest
+	if input.Type == event.TypeFallWarn {
+		ingest = h.ingestFall
+	}
+	result, err := ingest(ctx, input, receivedAt)
 	if err != nil {
 		writeUnavailable(response)
 		return

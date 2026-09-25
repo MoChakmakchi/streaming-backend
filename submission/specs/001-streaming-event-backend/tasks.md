@@ -107,7 +107,7 @@ the preceding stage.
 - [X] T028 [US2] Implement occupancy percentage and not-found rules in `submission/internal/features/occupancy/service.go`
 - [X] T029 [US2] Record the Stage 3 architecture refinement in `submission/docs/implementation-decisions.md` and align the feature artifacts
 - [X] T030 [US2] Implement and register GET `/rooms/{room_id}/occupancy` in `submission/internal/httpapi/occupancy.go` and `submission/internal/httpapi/server.go`
-- [ ] T031 [US2] Hand the Stage 3 checklist in `submission/specs/001-streaming-event-backend/quickstart.md` to the user and wait for explicit confirmation before T032
+- [X] T031 [US2] Hand the Stage 3 checklist in `submission/specs/001-streaming-event-backend/quickstart.md` to the user and wait for explicit confirmation before T032
 
 **Checkpoint**: User Story 2 is complete and manually confirmed.
 
@@ -121,19 +121,19 @@ the preceding stage.
 
 ### Focused tests
 
-- [ ] T032 [P] [US3] Add PostgreSQL tests for concurrent first-warning-anchored three-second deduplication, including a `0s/2s/4s` chain producing two alarms, room ordering, late/future immediate creation, stable IDs, and commit-before-notify behavior in `submission/internal/features/alarms/service_test.go`
-- [ ] T033 [P] [US3] Add GET `/alarms` and SSE tests for inclusive `created_at`, framing, per-room order, disconnect catch-up, boundary duplicates, and missed notifications in `submission/internal/httpapi/alarms_test.go`
+- [X] T032 [P] [US3] Add PostgreSQL tests for concurrent first-warning-anchored three-second deduplication, including a `0s/2s/4s` chain producing two alarms, room ordering, late/future immediate creation, stable IDs, and commit-before-publication behavior in `submission/internal/features/alarms/service_test.go`
+- [X] T033 [P] [US3] Add GET `/alarms` and SSE tests for inclusive `created_at`, framing, per-room order, disconnect recovery, and boundary duplicates in `submission/internal/httpapi/alarms_test.go`
 
 ### Implementation
 
-- [ ] T034 [US3] Define logical-alarm values and API mapping in `submission/internal/features/alarms/model.go`
-- [ ] T035 [US3] Implement room advisory locking, first-warning-anchored three-second device/room lookup, alarm insertion, inclusive history, and transactional PostgreSQL notification in `submission/internal/features/alarms/store.go`
-- [ ] T036 [US3] Implement the atomic fall-ingest transaction and alarm-history operations in `submission/internal/features/alarms/service.go`
-- [ ] T037 [US3] Route fall warnings through the alarm service while preserving normal-event ingestion behavior in `submission/internal/httpapi/events.go`
-- [ ] T038 [US3] Implement the dedicated PostgreSQL listener and periodic persisted-alarm check in `submission/internal/features/alarms/feed.go`
-- [ ] T039 [US3] Implement GET `/alarms` and GET `/alarms/stream` with SSE flushing and cancellation in `submission/internal/httpapi/alarms.go` and register both in `submission/internal/httpapi/server.go`
-- [ ] T040 [US3] Wire alarm storage, notification listening, and feed shutdown into `submission/cmd/api/main.go`
-- [ ] T041 [US3] Hand the Stage 4 checklist in `submission/specs/001-streaming-event-backend/quickstart.md` to the user and wait for explicit confirmation before T042
+- [X] T034 [US3] Define logical-alarm values and API mapping in `submission/internal/features/alarms/model.go`
+- [X] T035 [US3] Implement room advisory locking, first-warning-anchored three-second device/room lookup, alarm insertion, and inclusive history in `submission/internal/features/alarms/store.go`
+- [X] T036 [US3] Implement the atomic fall-ingest transaction and alarm-history operations in `submission/internal/features/alarms/service.go`
+- [X] T037 [US3] Route fall warnings through the alarm service while preserving normal-event ingestion behavior in `submission/internal/httpapi/events.go`
+- [X] T038 [US3] Implement the in-process alarm broadcaster with post-commit wake-up and durable-order reads in `submission/internal/features/alarms/feed.go`
+- [X] T039 [US3] Implement GET `/alarms` and GET `/alarms/stream` with SSE flushing and cancellation in `submission/internal/httpapi/alarms.go` and register both in `submission/internal/httpapi/server.go`
+- [X] T040 [US3] Wire alarm storage and the in-process broadcaster into `submission/cmd/api/main.go`
+- [X] T041 [US3] Hand the Stage 4 checklist in `submission/specs/001-streaming-event-backend/quickstart.md` to the user and wait for explicit confirmation before T042
 
 **Checkpoint**: User Story 3 is complete and manually confirmed.
 
@@ -148,7 +148,7 @@ the preceding stage.
 ### Focused tests
 
 - [ ] T042 [P] [US4] Add saturation and retry-storm tests proving bounded admission, explicit `503 Retry-After`, and no false acknowledgement in `submission/internal/httpapi/backpressure_test.go`
-- [ ] T043 [P] [US4] Add failure-boundary checks for API commit-before-response, alarm commit-before-notify, persistent event history, and migration compatibility across restart in `submission/test/load/restart.sh`
+- [ ] T043 [P] [US4] Add failure-boundary checks for API commit-before-response, alarm commit-before-publication, persistent event history, and migration compatibility across restart in `submission/test/load/restart.sh`
 
 ### Implementation and verification
 

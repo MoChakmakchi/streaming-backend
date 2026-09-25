@@ -42,7 +42,8 @@ gate and work does not continue until the user confirms the result.
   and logging use the standard library. No generic repositories, speculative interfaces, or empty
   packages are planned.
 - **Durable boundaries — PASS**: Events commit before acknowledgement. Fall-event storage, alarm
-  deduplication, alarm storage, and notification share one transaction.
+  deduplication, and alarm storage share one transaction; live publication occurs only after a
+  successful commit.
 - **Confirmed architecture — PASS**: The Stage 3 refinement is recorded in
   `implementation-decisions.md`; ADRs remain unchanged as pre-build records. No new service,
   database, cache, or broker is introduced.
@@ -118,10 +119,10 @@ fields or helpers for later stages.
   repair work or stored time buckets.
 - For fall warnings, take a transaction-scoped PostgreSQL advisory lock for the room, store the raw
   event, check the three-second device-and-room window anchored to each existing alarm's source
-  warning, create at most one alarm, and notify listeners in the same transaction. Duplicate
-  warnings do not extend the window.
-- Use `LISTEN/NOTIFY` only to wake live-feed readers. Alarm rows and inclusive
-  `GET /alarms?since=<ts>` queries provide recovery.
+  warning, and create at most one alarm. Duplicate warnings do not extend the window.
+- After commit, signal the API process's SSE broadcaster, which reads unseen alarm rows in durable
+  order before publishing them. Inclusive `GET /alarms?since=<ts>` queries recover a delivery
+  missed during disconnection or a process stop between commit and publication.
 
 ## Delivery Sequence and Manual Gates
 
@@ -143,9 +144,9 @@ occupied-duration queries that account for late transitions. **Stop for manual c
 
 ### Stage 4 — Alarms
 
-Add synchronous fall deduplication and persistence, alarm history, PostgreSQL notification, and
-the SSE feed. Verify three-second deduplication, per-room order, reconnect catch-up, missed
-notifications, and one-second latency. **Stop for manual confirmation.**
+Add synchronous fall deduplication and persistence, alarm history, an in-process broadcaster, and
+the SSE feed. Verify three-second deduplication, per-room order, reconnect catch-up,
+commit-before-publication recovery, and one-second latency. **Stop for manual confirmation.**
 
 ### Stage 5 — Recovery, pressure, and final verification
 

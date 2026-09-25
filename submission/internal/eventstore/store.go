@@ -36,7 +36,7 @@ func (s *Store) Ingest(
 	}
 	defer tx.Rollback(ctx)
 
-	result, err := s.insert(ctx, tx, input, receivedAt)
+	result, err := Insert(ctx, tx, input, receivedAt)
 	if err != nil {
 		return InsertResult{}, err
 	}
@@ -46,7 +46,7 @@ func (s *Store) Ingest(
 	return result, nil
 }
 
-func (s *Store) insert(
+func Insert(
 	ctx context.Context,
 	tx pgx.Tx,
 	input event.Event,

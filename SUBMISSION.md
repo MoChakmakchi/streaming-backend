@@ -1,9 +1,5 @@
 # Submission, Real-time Streaming Backend
 
-**Name:** Mo Chakmakchi
-**Email:** mohchakm@gmail.com
-**Link to your fork or solution:** https://github.com/MoChakmakchi/streaming-backend.git
-
 ---
 
 ## Stack and storage

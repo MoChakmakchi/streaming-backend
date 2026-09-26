@@ -28,3 +28,27 @@ deduplication, history, and prompt delivery.
 counts can use per-device time buckets; occupancy can use per-room intervals or occupied-duration
 buckets. Late events would rebuild only the affected bucket or adjacent interval. Background
 processing should return only if measured rollup work cannot remain on the request path.
+
+## Close the SSE reconnect race
+
+**When**: Stage 4 follow-up, while reviewing alarm recovery against the README.
+
+**Related pre-build ADRs**: [0006](./adr/0006-restart-correctness.md) and
+[0008](./adr/0008-backpressure.md).
+
+**Original approach**: A reconnecting consumer queried `GET /alarms?since=<ts>` and then opened the
+live SSE stream.
+
+**Finding**: An alarm could commit after the history query but before the live subscription. The
+alarm remained durable and queryable, but that two-request reconnect sequence could miss it. This
+did not fully satisfy the README requirement that consumers reconnect after a restart without
+missing alarms generated during the gap.
+
+**Change**: A consumer reconnects through `/alarms/stream?since=<ts>`. The handler establishes the
+live subscription first, replays persisted alarms from the inclusive creation timestamp, removes
+history/live overlap by stable alarm ID, and then continues live delivery. `GET /alarms` remains a
+standalone history endpoint.
+
+This deliberately narrows the earlier ADR recovery protocol after implementation review exposed
+the race. The ADRs remain unchanged as the pre-build record; this document records the later
+correction made to stay closer to the README's required outcome.

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -14,26 +15,29 @@ import (
 type ingestFunc func(context.Context, event.Event, time.Time) (eventstore.InsertResult, error)
 
 type eventsHandler struct {
-	ingest     ingestFunc
-	ingestFall ingestFunc
-	capacity   chan struct{}
-	deadline   time.Duration
-	now        func() time.Time
+	ingest         ingestFunc
+	ingestFall     ingestFunc
+	normalCapacity chan struct{}
+	fallCapacity   chan struct{}
+	deadline       time.Duration
+	now            func() time.Time
 }
 
 func NewEventsHandler(
 	ingest ingestFunc,
 	ingestFall ingestFunc,
-	maxConcurrent int,
+	normalConcurrency int,
+	fallConcurrency int,
 	deadline time.Duration,
 	now func() time.Time,
 ) http.Handler {
 	return &eventsHandler{
-		ingest:     ingest,
-		ingestFall: ingestFall,
-		capacity:   make(chan struct{}, maxConcurrent),
-		deadline:   deadline,
-		now:        now,
+		ingest:         ingest,
+		ingestFall:     ingestFall,
+		normalCapacity: make(chan struct{}, normalConcurrency),
+		fallCapacity:   make(chan struct{}, fallConcurrency),
+		deadline:       deadline,
+		now:            now,
 	}
 }
 
@@ -52,22 +56,30 @@ func (h *eventsHandler) ServeHTTP(response http.ResponseWriter, request *http.Re
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(request.Context(), h.deadline)
-	defer cancel()
+	ingest := h.ingest
+	capacity := h.normalCapacity
+	if input.Type == event.TypeFallWarn {
+		ingest = h.ingestFall
+		capacity = h.fallCapacity
+	}
+
 	select {
-	case h.capacity <- struct{}{}:
-		defer func() { <-h.capacity }()
-	case <-ctx.Done():
+	case capacity <- struct{}{}:
+		defer func() { <-capacity }()
+	default:
 		writeUnavailable(response)
 		return
 	}
 
-	ingest := h.ingest
-	if input.Type == event.TypeFallWarn {
-		ingest = h.ingestFall
-	}
+	ctx, cancel := context.WithTimeout(request.Context(), h.deadline)
+	defer cancel()
 	result, err := ingest(ctx, input, receivedAt)
 	if err != nil {
+		slog.ErrorContext(ctx, "ingest event",
+			"error", err,
+			"device_id", input.DeviceID,
+			"event_type", input.Type,
+		)
 		writeUnavailable(response)
 		return
 	}

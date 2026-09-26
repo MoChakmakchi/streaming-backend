@@ -142,18 +142,34 @@ paths:
       operationId: streamAlarms
       description: >-
         Opens a live SSE stream. Each message uses event type `alarm` and a LogicalAlarm JSON value
-        as its data. After a disconnect, reconnect to the stream and use `GET /alarms?since=<ts>`
-        with the last processed `created_at` value to recover missed alarms. Delivery is
-        at-least-once, so the same stable `event_id` may appear in both recovery and live results.
+        as its data. When `since` is supplied, the server establishes the live subscription before
+        replaying persisted alarms from that inclusive creation timestamp, removes history/live
+        overlap by stable `event_id`, and then continues live delivery. The inclusive boundary may
+        repeat across separate connections.
+      parameters:
+        - name: since
+          in: query
+          required: false
+          description: >-
+            RFC 3339 durable creation timestamp used for reconnect replay, or `0` to replay all
+            retained alarms. Omit for a live-only stream.
+          schema:
+            type: string
       responses:
         "200":
-          description: Live alarm stream.
+          description: Requested persisted replay, if any, followed by the live alarm stream.
           content:
             text/event-stream:
               schema:
                 type: string
                 examples:
                   - "event: alarm\ndata: {\"event_id\":42,\"room_id\":\"room_14\",\"device_id\":\"dev_0001\",\"ts\":\"2026-05-23T18:53:49.123Z\",\"confidence\":0.92,\"created_at\":\"2026-05-23T18:53:49.200Z\"}\n\n"
+        "400":
+          description: "`since` is neither `0` nor a valid RFC 3339 timestamp."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
 components:
   parameters:

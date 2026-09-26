@@ -3,6 +3,7 @@ package alarms
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -44,9 +45,10 @@ func (s *Service) Ingest(
 		return eventstore.InsertResult{}, err
 	}
 
+	var alarm Alarm
 	created := false
 	if result.Inserted {
-		_, created, err = s.store.insert(ctx, tx, result.EventID, input)
+		alarm, created, err = s.store.insert(ctx, tx, result.EventID, input)
 		if err != nil {
 			return eventstore.InsertResult{}, err
 		}
@@ -56,6 +58,12 @@ func (s *Service) Ingest(
 		return eventstore.InsertResult{}, fmt.Errorf("commit fall ingest transaction: %w", err)
 	}
 	if created {
+		slog.InfoContext(ctx, "alarm created",
+			"alarm_id", alarm.EventID,
+			"device_id", alarm.DeviceID,
+			"room_id", alarm.RoomID,
+			"event_time", alarm.EventTime,
+		)
 		s.feed.Wake(input.RoomID)
 	}
 	return result, nil

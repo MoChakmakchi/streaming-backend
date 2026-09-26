@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -30,6 +31,7 @@ func (h *alarmHistoryHandler) ServeHTTP(response http.ResponseWriter, request *h
 
 	items, err := h.list(request.Context(), since)
 	if err != nil {
+		slog.ErrorContext(request.Context(), "query alarm history", "error", err)
 		writeError(response, http.StatusInternalServerError, "internal_error", "could not read alarms")
 		return
 	}
@@ -50,14 +52,31 @@ func parseAlarmSince(value string) (*time.Time, error) {
 }
 
 type alarmStreamHandler struct {
-	subscribe alarmSubscribeFunc
+	list            alarmListFunc
+	subscribe       alarmSubscribeFunc
+	observeDelivery func(time.Duration)
 }
 
-func NewAlarmStreamHandler(subscribe alarmSubscribeFunc) http.Handler {
-	return &alarmStreamHandler{subscribe: subscribe}
+func NewAlarmStreamHandler(
+	list alarmListFunc,
+	subscribe alarmSubscribeFunc,
+	observeDelivery func(time.Duration),
+) http.Handler {
+	return &alarmStreamHandler{
+		list:            list,
+		subscribe:       subscribe,
+		observeDelivery: observeDelivery,
+	}
 }
 
 func (h *alarmStreamHandler) ServeHTTP(response http.ResponseWriter, request *http.Request) {
+	sinceValue := request.URL.Query().Get("since")
+	since, err := parseAlarmSince(sinceValue)
+	if err != nil {
+		writeError(response, http.StatusBadRequest, "invalid_since", "since must be 0 or an RFC 3339 timestamp")
+		return
+	}
+
 	flusher, ok := response.(http.Flusher)
 	if !ok {
 		writeError(response, http.StatusInternalServerError, "stream_unsupported", "streaming is not supported")
@@ -67,10 +86,28 @@ func (h *alarmStreamHandler) ServeHTTP(response http.ResponseWriter, request *ht
 	updates, unsubscribe := h.subscribe()
 	defer unsubscribe()
 
+	history := []alarms.Alarm{}
+	if sinceValue != "" {
+		history, err = h.list(request.Context(), since)
+		if err != nil {
+			slog.ErrorContext(request.Context(), "query alarm stream history", "error", err)
+			writeError(response, http.StatusInternalServerError, "internal_error", "could not read alarms")
+			return
+		}
+	}
+
 	response.Header().Set("Content-Type", "text/event-stream")
 	response.Header().Set("Cache-Control", "no-cache")
 	response.WriteHeader(http.StatusOK)
 	flusher.Flush()
+
+	replayed := make(map[int64]struct{}, len(history))
+	for _, alarm := range history {
+		if err := writeAlarmEvent(response, flusher, alarm); err != nil {
+			return
+		}
+		replayed[alarm.EventID] = struct{}{}
+	}
 
 	for {
 		select {
@@ -80,14 +117,25 @@ func (h *alarmStreamHandler) ServeHTTP(response http.ResponseWriter, request *ht
 			if !open {
 				return
 			}
-			data, err := json.Marshal(alarm)
-			if err != nil {
+			if _, alreadyReplayed := replayed[alarm.EventID]; alreadyReplayed {
+				continue
+			}
+			if err := writeAlarmEvent(response, flusher, alarm); err != nil {
 				return
 			}
-			if _, err := fmt.Fprintf(response, "event: alarm\ndata: %s\n\n", data); err != nil {
-				return
-			}
-			flusher.Flush()
+			h.observeDelivery(time.Since(alarm.CreatedAt))
 		}
 	}
+}
+
+func writeAlarmEvent(response http.ResponseWriter, flusher http.Flusher, alarm alarms.Alarm) error {
+	data, err := json.Marshal(alarm)
+	if err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintf(response, "event: alarm\ndata: %s\n\n", data); err != nil {
+		return err
+	}
+	flusher.Flush()
+	return nil
 }

@@ -66,7 +66,7 @@ func TestPostEventsResponses(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			handler := NewEventsHandler(test.ingest, test.ingest, 1, time.Second, func() time.Time { return now })
+			handler := NewEventsHandler(test.ingest, test.ingest, 1, 1, time.Second, func() time.Time { return now })
 			request := httptest.NewRequest(http.MethodPost, "/events", strings.NewReader(test.body))
 			response := httptest.NewRecorder()
 			handler.ServeHTTP(response, request)
@@ -96,7 +96,7 @@ func TestPostFallUsesAlarmIngest(t *testing.T) {
 		}
 		return eventstore.InsertResult{EventID: 42, Inserted: true}, nil
 	}
-	handler := NewEventsHandler(normalIngest, alarmIngest, 1, time.Second, func() time.Time { return now })
+	handler := NewEventsHandler(normalIngest, alarmIngest, 1, 1, time.Second, func() time.Time { return now })
 	request := httptest.NewRequest(
 		http.MethodPost,
 		"/events",

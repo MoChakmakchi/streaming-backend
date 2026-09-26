@@ -3,6 +3,7 @@ package httpapi
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -40,6 +41,10 @@ func (h *occupancyHandler) ServeHTTP(response http.ResponseWriter, request *http
 		return
 	}
 	if err != nil {
+		slog.ErrorContext(request.Context(), "query room occupancy",
+			"error", err,
+			"room_id", chi.URLParam(request, "room_id"),
+		)
 		writeError(response, http.StatusInternalServerError, "internal_error", "could not read room occupancy")
 		return
 	}

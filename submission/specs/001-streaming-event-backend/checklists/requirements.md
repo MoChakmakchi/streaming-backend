@@ -31,4 +31,5 @@
 
 ## Notes
 
-- Validation passed on 2026-09-22. No clarification markers or unresolved checklist items remain.
+- Validation rechecked on 2026-09-25 after clarifying gap-free alarm-feed reconnection. No
+  clarification markers or unresolved checklist items remain.

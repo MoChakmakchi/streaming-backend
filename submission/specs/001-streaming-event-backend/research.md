@@ -66,16 +66,20 @@ Sources: [PostgreSQL advisory locks](https://www.postgresql.org/docs/current/exp
 
 **Decision**: After an alarm commits, signal one in-process SSE broadcaster. The broadcaster reads
 unseen alarm rows in durable creation order before publishing them. Reconnecting clients use
-inclusive `GET /alarms?since=<ts>` over alarm creation time.
+inclusive `/alarms/stream?since=<ts>` over alarm creation time. The stream subscribes to live
+delivery before reading history, replays persisted alarms, removes history/live overlap by stable
+alarm ID, and then continues live delivery.
 
 **Rationale**: The assignment runs one API process, so database notifications and periodic polling
 add no required capability. Reading after an in-process wake-up preserves durable order across
 concurrent request goroutines. The alarm table remains the source of truth if a client disconnects
-or the process stops between commit and publication. Stable IDs make inclusive boundary duplicates
-harmless.
+or the process stops between commit and publication. Subscribing before replay closes the gap in a
+separate history-query-then-subscribe sequence. Stable IDs make inclusive boundary duplicates
+across connections harmless.
 
 **Alternatives considered**: PostgreSQL `LISTEN/NOTIFY` or a broker can provide cross-process
-wake-ups if API replicas are introduced later.
+wake-ups if API replicas are introduced later. Separate history and stream requests leave a race
+between the requests, so they remain available individually but are not the reconnect protocol.
 
 ## SSE and HTTP lifecycle
 

@@ -122,7 +122,7 @@ the preceding stage.
 ### Focused tests
 
 - [X] T032 [P] [US3] Add PostgreSQL tests for concurrent first-warning-anchored three-second deduplication, including a `0s/2s/4s` chain producing two alarms, room ordering, late/future immediate creation, stable IDs, and commit-before-publication behavior in `submission/internal/features/alarms/service_test.go`
-- [X] T033 [P] [US3] Add GET `/alarms` and SSE tests for inclusive `created_at`, framing, per-room order, disconnect recovery, and boundary duplicates in `submission/internal/httpapi/alarms_test.go`
+- [X] T033 [P] [US3] Add GET `/alarms` and SSE tests for inclusive `created_at`, framing, per-room order, subscribe-before-history recovery, and history/live overlap removal in `submission/internal/httpapi/alarms_test.go`
 
 ### Implementation
 
@@ -131,7 +131,7 @@ the preceding stage.
 - [X] T036 [US3] Implement the atomic fall-ingest transaction and alarm-history operations in `submission/internal/features/alarms/service.go`
 - [X] T037 [US3] Route fall warnings through the alarm service while preserving normal-event ingestion behavior in `submission/internal/httpapi/events.go`
 - [X] T038 [US3] Implement the in-process alarm broadcaster with post-commit wake-up and durable-order reads in `submission/internal/features/alarms/feed.go`
-- [X] T039 [US3] Implement GET `/alarms` and GET `/alarms/stream` with SSE flushing and cancellation in `submission/internal/httpapi/alarms.go` and register both in `submission/internal/httpapi/server.go`
+- [X] T039 [US3] Implement GET `/alarms` and GET `/alarms/stream`, including `since` replay without a history/live gap, SSE flushing, and cancellation in `submission/internal/httpapi/alarms.go` and register both in `submission/internal/httpapi/server.go`
 - [X] T040 [US3] Wire alarm storage and the in-process broadcaster into `submission/cmd/api/main.go`
 - [X] T041 [US3] Hand the Stage 4 checklist in `submission/specs/001-streaming-event-backend/quickstart.md` to the user and wait for explicit confirmation before T042
 

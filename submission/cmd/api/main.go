@@ -21,6 +21,11 @@ import (
 	"teton/internal/httpapi"
 )
 
+const (
+	normalIngestConcurrency = 24
+	fallIngestConcurrency   = 4
+)
+
 func main() {
 	if err := run(); err != nil {
 		slog.Error("api stopped", "error", err)
@@ -62,27 +67,36 @@ func run() error {
 	alarmService := alarms.NewService(pool, alarmFeed)
 	healthService := health.NewService(pool)
 	occupancyService := occupancy.NewService(pool)
+	metrics := httpapi.NewMetrics(pool)
 	eventsHandler := httpapi.NewEventsHandler(
 		events.Ingest,
 		alarmService.Ingest,
-		int(cfg.DatabaseMaxConn),
+		normalIngestConcurrency,
+		fallIngestConcurrency,
 		cfg.IngestDeadline,
 		time.Now,
 	)
 	healthHandler := httpapi.NewHealthHandler(healthService.Get, time.Now)
 	occupancyHandler := httpapi.NewOccupancyHandler(occupancyService.Get, time.Now)
 	alarmHistoryHandler := httpapi.NewAlarmHistoryHandler(alarmService.List)
-	alarmStreamHandler := httpapi.NewAlarmStreamHandler(alarmFeed.Subscribe)
+	alarmStreamHandler := httpapi.NewAlarmStreamHandler(
+		alarmService.List,
+		alarmFeed.Subscribe,
+		metrics.ObserveAlarmDelivery,
+	)
 	server := &http.Server{
 		Addr: cfg.HTTPAddr,
-		Handler: httpapi.LogRequests(
-			logger,
-			httpapi.NewServer(
-				eventsHandler,
-				healthHandler,
-				occupancyHandler,
-				alarmHistoryHandler,
-				alarmStreamHandler,
+		Handler: metrics.Middleware(
+			httpapi.LogRequests(
+				logger,
+				httpapi.NewServer(
+					eventsHandler,
+					healthHandler,
+					occupancyHandler,
+					alarmHistoryHandler,
+					alarmStreamHandler,
+					metrics,
+				),
 			),
 		),
 		ReadHeaderTimeout: 5 * time.Second,

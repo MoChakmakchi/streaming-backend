@@ -3,6 +3,7 @@ package httpapi
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -29,6 +30,10 @@ func (h *healthHandler) ServeHTTP(response http.ResponseWriter, request *http.Re
 		return
 	}
 	if err != nil {
+		slog.ErrorContext(request.Context(), "query device health",
+			"error", err,
+			"device_id", chi.URLParam(request, "device_id"),
+		)
 		writeError(response, http.StatusInternalServerError, "internal_error", "could not read device health")
 		return
 	}

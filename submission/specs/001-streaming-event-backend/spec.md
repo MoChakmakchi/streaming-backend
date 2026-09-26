@@ -15,6 +15,10 @@
 - Q: How should the system decide that two fall warnings represent the same physical fall? → A: Use a three-second window for the same device and room, anchored to the warning that created the alarm; duplicates do not extend the window.
 - Q: Should alarm recovery use a separate resumable SSE cursor or only the documented alarm-history endpoint after reconnecting? → A: Reconnect SSE and recover missed alarms through `GET /alarms?since=<ts>`.
 
+### Session 2026-09-25
+
+- Q: How should reconnect avoid an alarm arriving between history recovery and live subscription? → A: Reconnect directly to `/alarms/stream?since=<ts>`; the stream establishes live delivery before replaying persisted alarms. `GET /alarms?since=<ts>` remains available for standalone history queries.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Accept Events Reliably (Priority: P1)
@@ -62,7 +66,7 @@ As an alarm-feed consumer, I need each physical fall warning delivered promptly 
 
 1. **Given** a new fall warning, **When** it is accepted, **Then** one durable alarm with the original event timestamp becomes available to subscribers.
 2. **Given** jitter copies of the same fall, **When** they are accepted, **Then** consumers receive one logical alarm.
-3. **Given** a consumer disconnects, **When** it reconnects and requests alarms since its last alarm creation time, **Then** every missed alarm is returned; boundary duplicates are allowed.
+3. **Given** a consumer disconnects, **When** it reconnects to the feed from its last alarm creation time, **Then** persisted alarms are replayed before live delivery continues without a history/live gap; boundary duplicates across connections are allowed.
 4. **Given** a fall warning has a late or accepted future timestamp, **When** it is ingested, **Then** it is published promptly rather than waiting for event time.
 
 ---
@@ -90,7 +94,7 @@ As a service operator, I need ingestion, queries, and alarms to remain correct d
 - A late presence transition changes an interval but is older than the room's current state.
 - A future-dated accepted state event is queried before and after its timestamp is reached.
 - A fall warning is committed while no live-feed consumer is connected.
-- A consumer reconnects at a boundary where an alarm may already have been delivered.
+- A consumer reconnects while an alarm is committed between establishing the live subscription and reading persisted history.
 - A process stops after committing an event but before returning its acceptance response.
 - A process stops after committing an alarm but before publishing it to the live feed.
 - An unknown device or room is queried before it has any accepted events.
@@ -122,9 +126,9 @@ The feature includes event ingestion, durable event history, device-health and r
 - **FR-017**: A fall warning within three seconds of the source warning for an existing alarm from the same device and room MUST represent that logical alarm. Duplicate warnings MUST NOT extend the three-second window.
 - **FR-018**: Every logical alarm MUST have a stable identifier and MUST expose its original warning timestamp, durable creation timestamp, room, device, and confidence.
 - **FR-019**: Late and accepted future-dated fall warnings MUST become durable alarms immediately after ingestion rather than waiting for event time.
-- **FR-020**: The live alarm feed MUST expose alarms in durable publication order and preserve that order within each room.
+- **FR-020**: The live alarm feed MUST expose alarms in durable publication order and preserve that order within each room. When a recovery timestamp is supplied, it MUST replay persisted alarms from that inclusive timestamp and continue live delivery without a history/live gap or duplicate overlap within that connection.
 - **FR-021**: `GET /alarms?since=<ts>` MUST return alarms whose durable creation timestamp is greater than or equal to `since`.
-- **FR-022**: Duplicate alarm delivery around reconnection and history-query boundaries MUST retain the same stable alarm identifier so consumers can deduplicate safely.
+- **FR-022**: Duplicate alarm delivery around reconnection and replay boundaries MUST retain the same stable alarm identifier so consumers can deduplicate safely.
 - **FR-023**: Temporary ingestion pressure MUST NOT lose any event whose acceptance was confirmed.
 - **FR-024**: If an event cannot be accepted before its request deadline, the system MUST reject it explicitly as retryable and MUST NOT report successful acceptance.
 - **FR-025**: A restart MUST recover committed events and alarms, from which health and occupancy remain queryable.
@@ -151,7 +155,7 @@ The feature includes event ingestion, durable event history, device-health and r
 - **SC-003**: For baseline, out-of-order, offline-replay, and concurrent-ingestion scenarios, every sampled health and occupancy result matches the result calculated from accepted events ordered by event time.
 - **SC-004**: The number of persisted logical alarms matches the number of distinct physical falls in the evaluation input, with no missing or extra alarms.
 - **SC-005**: After a hard restart, all previously committed events and alarms remain queryable without a duplicate logical effect.
-- **SC-006**: A reconnecting consumer retrieves every missed alarm from its last alarm creation timestamp; duplicates are allowed, missing alarms are not.
+- **SC-006**: A consumer reconnecting to the live feed from its last alarm creation timestamp receives every missed alarm before live delivery continues; the inclusive boundary may repeat across connections, but no alarm is missed.
 - **SC-007**: Events exactly on either one-hour acceptance boundary are accepted, while events immediately outside either boundary are rejected.
 - **SC-008**: A 5,001st device is ingested and becomes queryable without configuration changes or redeployment.
 - **SC-009**: Operators can determine from exposed signals whether ingestion, queries, or alarm delivery is delayed or failing.

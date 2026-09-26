@@ -121,8 +121,9 @@ fields or helpers for later stages.
   event, check the three-second device-and-room window anchored to each existing alarm's source
   warning, and create at most one alarm. Duplicate warnings do not extend the window.
 - After commit, signal the API process's SSE broadcaster, which reads unseen alarm rows in durable
-  order before publishing them. Inclusive `GET /alarms?since=<ts>` queries recover a delivery
-  missed during disconnection or a process stop between commit and publication.
+  order before publishing them. A reconnecting `/alarms/stream?since=<ts>` subscriber is registered
+  before persisted alarms are replayed, closing the history/live race while stable IDs suppress
+  overlap. `GET /alarms?since=<ts>` remains available for standalone history queries.
 
 ## Delivery Sequence and Manual Gates
 
@@ -145,7 +146,7 @@ occupied-duration queries that account for late transitions. **Stop for manual c
 ### Stage 4 — Alarms
 
 Add synchronous fall deduplication and persistence, alarm history, an in-process broadcaster, and
-the SSE feed. Verify three-second deduplication, per-room order, reconnect catch-up,
+the SSE feed. Verify three-second deduplication, per-room order, gap-free reconnect catch-up,
 commit-before-publication recovery, and one-second latency. **Stop for manual confirmation.**
 
 ### Stage 5 — Recovery, pressure, and final verification

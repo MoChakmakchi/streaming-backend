@@ -9,13 +9,14 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 )
 
-func NewServer(events, health, occupancy, alarmHistory, alarmStream http.Handler) http.Handler {
+func NewServer(events, health, occupancy, alarmHistory, alarmStream, metrics http.Handler) http.Handler {
 	router := chi.NewRouter()
 	router.Method(http.MethodPost, "/events", events)
 	router.Method(http.MethodGet, "/devices/{device_id}/health", health)
 	router.Method(http.MethodGet, "/rooms/{room_id}/occupancy", occupancy)
 	router.Method(http.MethodGet, "/alarms", alarmHistory)
 	router.Method(http.MethodGet, "/alarms/stream", alarmStream)
+	router.Method(http.MethodGet, "/metrics", metrics)
 	return router
 }
 
@@ -33,7 +34,7 @@ func LogRequests(logger *slog.Logger, next http.Handler) http.Handler {
 		level := slog.LevelDebug
 		switch {
 		case status == http.StatusServiceUnavailable:
-			level = slog.LevelWarn
+			level = slog.LevelDebug
 		case status >= http.StatusInternalServerError:
 			level = slog.LevelError
 		case status >= http.StatusBadRequest:

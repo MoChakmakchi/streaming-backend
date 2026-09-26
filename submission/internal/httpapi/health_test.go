@@ -28,6 +28,7 @@ func TestGetDeviceHealth(t *testing.T) {
 		http.NotFoundHandler(),
 		http.NotFoundHandler(),
 		http.NotFoundHandler(),
+		http.NotFoundHandler(),
 	)
 
 	t.Run("compatible response", func(t *testing.T) {

@@ -135,14 +135,17 @@ Expected: the stream emits one `alarm` event and history contains one logical al
 curl 'http://localhost:8090/alarms?since=0'
 ```
 
-Record its `created_at`, disconnect the stream, create another alarm, reconnect, and query with the recorded value:
+Record its `created_at`, disconnect the stream, create another alarm, then reconnect from the
+recorded value:
 
 ```bash
-curl 'http://localhost:8090/alarms?since=<created_at>'
+curl -N 'http://localhost:8090/alarms/stream?since=<created_at>'
 ```
 
-Expected: the boundary alarm may repeat, the missed alarm is present, and repeated alarms keep the
-same stable `event_id`.
+Expected: the boundary alarm may repeat across the two connections, the missed alarm is replayed,
+and the connection remains open for new alarms. Each alarm appears only once within the reconnected
+stream even if it overlaps persisted history and buffered live delivery.
+`GET /alarms?since=<created_at>` remains available when only history is needed.
 
 ```bash
 cd submission

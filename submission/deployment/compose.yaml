@@ -1,6 +1,7 @@
 services:
   postgres:
     image: postgres:18
+    command: ["postgres", "-c", "commit_delay=200", "-c", "commit_siblings=5"]
     environment:
       POSTGRES_DB: teton
       POSTGRES_USER: teton

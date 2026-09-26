@@ -2,7 +2,7 @@
 
 **Branch**: `001-streaming-event-backend` | **Date**: 2026-09-23 | **Spec**: [spec.md](./spec.md)
 
-**Input**: Feature specification from `submission/specs/001-streaming-event-backend/spec.md`
+**Input**: Feature specification from `submission/docs/spec/spec.md`
 
 ## Summary
 
@@ -45,7 +45,7 @@ gate and work does not continue until the user confirms the result.
   deduplication, and alarm storage share one transaction; live publication occurs only after a
   successful commit.
 - **Confirmed architecture — PASS**: The Stage 3 refinement is recorded in
-  `implementation-decisions.md`; ADRs remain unchanged as pre-build records. No new service,
+  `implementation-drift.md`; ADRs remain unchanged as pre-build records. No new service,
   database, cache, or broker is introduced.
 - **Focused verification — PASS**: Tests cover README behavior and ADR risks: ingestion
   idempotency, ordering, late events, concurrent fall deduplication, restart recovery,
@@ -63,7 +63,7 @@ complexity exception is required.
 ### Documentation (this feature)
 
 ```text
-submission/specs/001-streaming-event-backend/
+submission/docs/spec/
 ├── plan.md
 ├── research.md
 ├── data-model.md
@@ -89,10 +89,11 @@ submission/
 │       └── alarms/                 # Fall deduplication, history, and live delivery
 ├── migrations/                         # Application SQL migrations
 ├── docs/
-│   ├── adr/                        # Existing accepted decisions
-│   ├── implementation-decisions.md # Refinements found during implementation
-│   └── api/
-│       └── openapi.yml             # Published API contract
+│   ├── pre-build/                  # Decisions recorded before implementation
+│   ├── spec/                       # Active spec, plan, tasks, and implementation drift
+│   ├── api/
+│   │   └── openapi.yml             # Published API contract
+│   └── verification.md             # Correctness and performance evidence
 ├── test/
 │   └── load/                       # Focused burst and alarm-latency checks
 ├── Makefile

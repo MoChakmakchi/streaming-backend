@@ -251,6 +251,7 @@ def main() -> None:
     parser.add_argument("--target", default="http://localhost:8090")
     parser.add_argument("--delay", type=float, default=0, help="seconds to wait before probing")
     parser.add_argument("--alarm-samples", type=int, default=20)
+    parser.add_argument("--alarms-only", action="store_true")
     args = parser.parse_args()
 
     require(args.alarm_samples > 0, "--alarm-samples must be positive")
@@ -260,8 +261,9 @@ def main() -> None:
 
     prefix = f"probe_{time.time_ns()}"
     client = Client(args.target)
-    verify_health(client, prefix)
-    verify_occupancy(client, prefix)
+    if not args.alarms_only:
+        verify_health(client, prefix)
+        verify_occupancy(client, prefix)
     alarm_p95 = verify_alarms(client, prefix, args.alarm_samples)
     print(json.dumps({
         "status": "passed",

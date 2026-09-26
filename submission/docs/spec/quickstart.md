@@ -4,7 +4,7 @@ Run each stage's checks after that stage is implemented. Stop at every gate and 
 before continuing to the next stage.
 
 API shapes and error responses are defined in
-[`submission/docs/api/openapi.yml`](../../docs/api/openapi.yml).
+[`submission/docs/api/openapi.yml`](../api/openapi.yml).
 
 ## Prerequisites
 

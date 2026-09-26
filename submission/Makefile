@@ -5,14 +5,13 @@ COMPOSE ?= docker compose -f deployment/compose.yaml
 DB_USER ?= teton
 DB_NAME ?= teton
 SERVICE_URL ?= http://localhost:8090
-DEVICES ?= 50
 K6_DEVICES ?= 5000
 RUN_ID ?= $(shell date +%s)
 PROBE_DELAY ?= 0
 ALARM_SAMPLES ?= 20
 BASELINE_ONLY ?= 0
 
-.PHONY: help build migrate api test test-integration test-race test-load test-probe test-restart test-evaluator docker-init docker-up docker-down docker-destroy
+.PHONY: help build migrate api test test-integration test-race test-load test-probe test-restart docker-init docker-up docker-down docker-destroy
 
 help:
 	@echo "Targets:"
@@ -25,7 +24,6 @@ help:
 	@echo "  test-load         run the full k6 baseline and burst scenario"
 	@echo "  test-probe        verify aggregations and alarms, optionally during load"
 	@echo "  test-restart      hard-kill the API and verify durable recovery"
-	@echo "  test-evaluator    run the supplied smoke evaluator"
 	@echo "  docker-init       start containers and apply migrations"
 	@echo "  docker-up         start containers without migrating"
 	@echo "  docker-down       stop containers and preserve data"
@@ -62,9 +60,6 @@ test-probe:
 
 test-restart:
 	SERVICE_URL=$(SERVICE_URL) bash test/load/restart.sh
-
-test-evaluator:
-	$(MAKE) -C .. smoke SERVICE_URL=$(SERVICE_URL) DEVICES=$(DEVICES)
 
 docker-init:
 	$(COMPOSE) up -d postgres adminer

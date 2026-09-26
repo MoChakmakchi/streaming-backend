@@ -5,7 +5,7 @@ description: "Dependency-ordered tasks for the real-time streaming event backend
 
 # Tasks: Real-Time Streaming Event Backend
 
-**Input**: Design documents from `submission/specs/001-streaming-event-backend/`
+**Input**: Design documents from `submission/docs/spec/`
 
 **Prerequisites**: [plan.md](./plan.md), [spec.md](./spec.md), [research.md](./research.md),
 [data-model.md](./data-model.md), [quickstart.md](./quickstart.md), and
@@ -58,7 +58,7 @@ the preceding stage.
 - [X] T011 [US1] Implement the transaction-bound ingestion operation in `submission/internal/eventstore/store.go`
 - [X] T012 [US1] Implement bounded POST `/events` ingestion with commit-before-acknowledgement, duplicate receipts, validation errors, and `503 Retry-After` in `submission/internal/httpapi/events.go` and register it in `submission/internal/httpapi/server.go`
 - [X] T013 [US1] Wire configuration, pgx, HTTP lifecycle, and graceful API shutdown in `submission/cmd/api/main.go`
-- [X] T014 [US1] Hand the Stage 1 checklist in `submission/specs/001-streaming-event-backend/quickstart.md` to the user and wait for explicit confirmation before T015
+- [X] T014 [US1] Hand the Stage 1 checklist in `submission/docs/spec/quickstart.md` to the user and wait for explicit confirmation before T015
 
 **Checkpoint**: User Story 1 is independently usable as the durable-ingestion MVP.
 
@@ -83,7 +83,7 @@ the preceding stage.
 - [X] T020 [US2] Align the source tree with the single API runtime and keep feature packages limited to query behavior
 - [X] T021 [US2] Add structured API lifecycle and request logging with configurable log level in `submission/internal/config/config.go`, `submission/cmd/api/main.go`, `submission/deployment/compose.yaml`, and `submission/internal/httpapi/server.go`
 - [X] T022 [US2] Implement and register GET `/devices/{device_id}/health` in `submission/internal/httpapi/health.go` and `submission/internal/httpapi/server.go`
-- [X] T023 [US2] Hand the Stage 2 checklist in `submission/specs/001-streaming-event-backend/quickstart.md` to the user and wait for explicit confirmation before T024
+- [X] T023 [US2] Hand the Stage 2 checklist in `submission/docs/spec/quickstart.md` to the user and wait for explicit confirmation before T024
 
 **Checkpoint**: The health half of User Story 2 is correct and manually confirmed.
 
@@ -105,9 +105,9 @@ the preceding stage.
 - [X] T026 [US2] Define room-occupancy values and supported windows in `submission/internal/features/occupancy/model.go`
 - [X] T027 [US2] Implement indexed current-state and occupied-duration queries using the state at the window start in `submission/internal/features/occupancy/store.go`
 - [X] T028 [US2] Implement occupancy percentage and not-found rules in `submission/internal/features/occupancy/service.go`
-- [X] T029 [US2] Record the Stage 3 architecture refinement in `submission/docs/implementation-decisions.md` and align the feature artifacts
+- [X] T029 [US2] Record the Stage 3 architecture refinement in `submission/docs/spec/implementation-drift.md` and align the feature artifacts
 - [X] T030 [US2] Implement and register GET `/rooms/{room_id}/occupancy` in `submission/internal/httpapi/occupancy.go` and `submission/internal/httpapi/server.go`
-- [X] T031 [US2] Hand the Stage 3 checklist in `submission/specs/001-streaming-event-backend/quickstart.md` to the user and wait for explicit confirmation before T032
+- [X] T031 [US2] Hand the Stage 3 checklist in `submission/docs/spec/quickstart.md` to the user and wait for explicit confirmation before T032
 
 **Checkpoint**: User Story 2 is complete and manually confirmed.
 
@@ -133,7 +133,7 @@ the preceding stage.
 - [X] T038 [US3] Implement the in-process alarm broadcaster with post-commit wake-up and durable-order reads in `submission/internal/features/alarms/feed.go`
 - [X] T039 [US3] Implement GET `/alarms` and GET `/alarms/stream`, including `since` replay without a history/live gap, SSE flushing, and cancellation in `submission/internal/httpapi/alarms.go` and register both in `submission/internal/httpapi/server.go`
 - [X] T040 [US3] Wire alarm storage and the in-process broadcaster into `submission/cmd/api/main.go`
-- [X] T041 [US3] Hand the Stage 4 checklist in `submission/specs/001-streaming-event-backend/quickstart.md` to the user and wait for explicit confirmation before T042
+- [X] T041 [US3] Hand the Stage 4 checklist in `submission/docs/spec/quickstart.md` to the user and wait for explicit confirmation before T042
 
 **Checkpoint**: User Story 3 is complete and manually confirmed.
 
@@ -158,8 +158,8 @@ the preceding stage.
 - [X] T047 [US4] Add structured lifecycle, request, ingest-error, query-error, alarm, and shutdown logging in `submission/cmd/api/main.go`, `submission/internal/httpapi/`, and `submission/internal/features/alarms/`
 - [X] T048 [P] [US4] Implement the 5,000-events/second baseline and two additional 45,000-events/second burst streams in `submission/test/load/events.js`, with deterministic aggregation and alarm verification in `submission/test/load/verify.py`
 - [X] T049 [P] [US4] Implement the hard-kill, migration-reapply, persistent-volume, duplicate-retry, and query-recovery scenario in `submission/test/load/restart.sh`
-- [X] T050 [US4] Add final integration, race, load, probe, restart, and evaluator targets to `submission/Makefile`
-- [ ] T051 [US4] Run the automated Stage 5 targets from `submission/Makefile`, including ingestion and query verification for a 5,001st device, then prepare the metrics and recovery results for user review
+- [X] T050 [US4] Add final integration, race, load, probe, and restart targets to `submission/Makefile`; run the supplied evaluator from the repository root
+- [X] T051 [US4] Run the automated Stage 5 targets from `submission/Makefile`, including ingestion and query verification for a 5,001st device, then prepare the metrics and recovery results for user review
 
 **Checkpoint**: All four user stories meet the assignment's correctness and performance conditions.
 
@@ -169,9 +169,9 @@ the preceding stage.
 
 **Purpose**: Verify the completed submission without expanding scope or rewriting approved documents.
 
-- [ ] T052 Run formatting, vetting, focused tests, and the race detector across `submission/`, fixing only implementation defects found by those checks
-- [ ] T053 Verify endpoint behavior against `submission/docs/api/openapi.yml` and prepare every applicable scenario in `submission/specs/001-streaming-event-backend/quickstart.md` for final user testing without changing decision records unless separately approved
-- [ ] T054 Hand the final Stage 5 checklist in `submission/specs/001-streaming-event-backend/quickstart.md` and the results from T051–T053 to the user, then wait for explicit final confirmation
+- [X] T052 Run formatting, vetting, focused tests, and the race detector across `submission/`, fixing only implementation defects found by those checks
+- [X] T053 Verify endpoint behavior against `submission/docs/api/openapi.yml` and prepare every applicable scenario in `submission/docs/spec/quickstart.md` for final user testing without changing decision records unless separately approved
+- [X] T054 Hand the final Stage 5 checklist in `submission/docs/spec/quickstart.md` and the results from T051–T053 to the user, then wait for explicit final confirmation
 
 ---
 
@@ -279,4 +279,4 @@ T049: Restart runner
 - The initial migration is owned by US1 and creates the complete known schema once.
 - Files and folders are added only when their task requires them.
 - ADRs remain unchanged as pre-build records. Approved implementation refinements are recorded in
-  `submission/docs/implementation-decisions.md` and reflected in the active specification.
+  `submission/docs/spec/implementation-drift.md` and reflected in the active specification.

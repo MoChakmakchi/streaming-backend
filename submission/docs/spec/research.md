@@ -25,7 +25,7 @@ events affect the next query immediately, and accepted future events remain excl
 query cutoff reaches their event time.
 
 The implementation-stage refinement that led to this design is recorded in
-[`implementation-decisions.md`](../../docs/implementation-decisions.md).
+[`implementation-drift.md`](./implementation-drift.md).
 
 ## Index and ordering strategy
 

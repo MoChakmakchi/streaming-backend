@@ -1,4 +1,4 @@
-# Implementation Decisions
+# Implementation Drift from the Pre-build Plan
 
 ADRs record architectural decisions made before the build. This document records refinements made
 during implementation when the concrete schema, queries, or runtime behavior provide new evidence.
@@ -7,9 +7,9 @@ during implementation when the concrete schema, queries, or runtime behavior pro
 
 **When**: Stage 3, while reviewing the occupancy schema and query.
 
-**Related pre-build ADRs**: [0002](./adr/0002-receiver-processor-separation.md),
-[0004](./adr/0004-event-processing-buffer.md), [0005](./adr/0005-folder-architecture.md),
-[0006](./adr/0006-restart-correctness.md), and [0008](./adr/0008-backpressure.md).
+**Related pre-build ADRs**: [0002](../pre-build/0002-receiver-processor-separation.md),
+[0004](../pre-build/0004-event-processing-buffer.md), [0005](../pre-build/0005-folder-architecture.md),
+[0006](../pre-build/0006-restart-correctness.md), and [0008](../pre-build/0008-backpressure.md).
 
 **Original approach**: River workers maintained current health and occupancy rows. Rolling health
 and occupancy values were still calculated from indexed raw events.
@@ -33,8 +33,8 @@ processing should return only if measured rollup work cannot remain on the reque
 
 **When**: Stage 4 follow-up, while reviewing alarm recovery against the README.
 
-**Related pre-build ADRs**: [0006](./adr/0006-restart-correctness.md) and
-[0008](./adr/0008-backpressure.md).
+**Related pre-build ADRs**: [0006](../pre-build/0006-restart-correctness.md) and
+[0008](../pre-build/0008-backpressure.md).
 
 **Original approach**: A reconnecting consumer queried `GET /alarms?since=<ts>` and then opened the
 live SSE stream.

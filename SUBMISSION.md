@@ -1,40 +1,61 @@
 # Submission, Real-time Streaming Backend
 
-**Your name:**
-**Email:**
-**Link to your fork or solution:**
+**Name:** Mo Chakmakchi
+**Email:** mohchakm@gmail.com
+**Link to your fork or solution:** https://github.com/MoChakmakchi/streaming-backend.git
 
 ---
 
 ## Stack and storage
 
-(What you chose, and why, 2–3 sentences each for compute, storage, transport.)
+I used Go, Chi, pgx, and PostgreSQL 18. Events arrive over HTTP and alarms use SSE. PostgreSQL
+provides durable transactions, indexing, and restart recovery without another service.
 
 ## Ordering and late events
 
-(How you handle per-device ordering and out-of-order arrivals from offline devices.)
+`(device_id, seq)` provides idempotency. Health and occupancy use indexed history ordered by device
+timestamp, so late events correct the next query. Accepted future events remain inactive until their
+timestamp. Alarms use a server-generated `created_at` recovery cursor rather than device time.
 
 ## Backpressure
 
-(What happens during a 10x burst. What you delay, what you prioritize.)
+Normal events use bounded group commits, flushing at 400 events or 4 ms. Falls have reserved capacity
+and create alarms in the ingest transaction. Fall jitter is deduplicated within three seconds of the
+first warning: 0s, 2s, and 4s produce two alarms. `202` means committed, `200` means duplicate, and
+`503` means not accepted and safe to retry.
 
 ## Restart correctness
 
-(How state survives a hard kill.)
+Events and alarms live in PostgreSQL on a persistent volume. Reconnecting SSE clients provide their
+last alarm creation time; the service subscribes before replaying history, avoiding a reconnect gap.
 
 ## How to run it locally
 
 ```bash
-# steps to bring up your service against event_generator/
+cd submission
+make docker-init
+
+cd ..
+python3 eval/check.py smoke --target http://localhost:8090 --devices 50
 ```
+
+Replace `smoke` with `offline`, `burst`, or `adversarial` for larger scenarios. The API is at
+`http://localhost:8090`.
 
 ## Reported metrics
 
-- Sustained ingest rate:
-- Alarm feed latency p50 / p95:
-- Behavior under hard kill + restart:
-- Aggregation correctness on replayed events:
+The isolated durable batch path reached 45,500 events/second with eight writers; four were retained
+because more did not improve HTTP throughput. End-to-end testing reached about 14,500 events/second,
+with alarm p95 at 150 ms under the heaviest delivered pressure. The laptop, LAN, and load generator
+hit the same ceiling with a minimal HTTP server, so the application maximum and 50,000-events/second
+result remain unverified. I would appreciate seeing the grader result.
 
 ## With another week
 
-(One or two paragraphs.)
+I would keep profiling and optimizing with dedicated load-generation hardware, and add production
+metrics, tracing, and operational alerts. If PostgreSQL became the measured limit, I would consider
+RabbitMQ as a durable queue, or Kafka if its replay and scale justified the extra machinery.
+
+The [final design](submission/docs/design.md), [verification](submission/docs/verification.md),
+[API contract](submission/docs/api/openapi.yml), and [decision history](submission/docs/pre-build/)
+contain the details.

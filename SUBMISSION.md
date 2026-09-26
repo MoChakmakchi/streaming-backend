@@ -10,6 +10,8 @@
 
 I used Go, Chi, pgx, and PostgreSQL 18. Events arrive over HTTP and alarms use SSE. PostgreSQL
 provides durable transactions, indexing, and restart recovery without another service.
+Skipping a broker was intentional: I wanted to measure a single Go service and PostgreSQL with
+commit-before-ack before adding infrastructure.
 
 ## Ordering and late events
 
@@ -30,6 +32,9 @@ Events and alarms live in PostgreSQL on a persistent volume. Reconnecting SSE cl
 last alarm creation time; the service subscribes before replaying history, avoiding a reconnect gap.
 
 ## How to run it locally
+
+Requires Docker Compose, `make`, and Python 3.10+. Go and k6 are only needed for host-side tests and
+load testing.
 
 ```bash
 cd submission

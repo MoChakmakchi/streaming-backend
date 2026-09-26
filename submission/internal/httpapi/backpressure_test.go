@@ -19,7 +19,7 @@ func TestPostEventsRejectsWhenAdmissionIsFull(t *testing.T) {
 
 	ingest := func(context.Context, event.Event, time.Time) (eventstore.InsertResult, error) {
 		calls++
-		return eventstore.InsertResult{EventID: int64(calls), Inserted: true}, nil
+		return eventstore.InsertResult{Inserted: true}, nil
 	}
 	handler := NewEventsHandler(ingest, ingest, 1, 1, time.Second, func() time.Time { return now }).(*eventsHandler)
 	handler.normalCapacity <- struct{}{}

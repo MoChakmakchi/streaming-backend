@@ -22,8 +22,12 @@ import (
 )
 
 const (
-	normalIngestConcurrency = 24
-	fallIngestConcurrency   = 4
+	normalBatchWriters    = 4
+	normalBatchSize       = 400
+	normalBatchWait       = 4 * time.Millisecond
+	normalPendingBatches  = 15
+	normalIngestCapacity  = (normalPendingBatches + normalBatchWriters + 1) * normalBatchSize
+	fallIngestConcurrency = 4
 )
 
 func main() {
@@ -59,6 +63,16 @@ func run() error {
 	}
 
 	events := eventstore.New(pool)
+	eventBatcher := eventstore.NewBatcher(
+		events,
+		normalBatchWriters,
+		normalBatchSize,
+		normalPendingBatches,
+		normalIngestCapacity,
+		normalBatchWait,
+		cfg.IngestDeadline,
+	)
+	defer eventBatcher.Close()
 	alarmFeed, err := alarms.NewFeed(ctx, pool)
 	if err != nil {
 		return fmt.Errorf("start alarm feed: %w", err)
@@ -69,9 +83,9 @@ func run() error {
 	occupancyService := occupancy.NewService(pool)
 	metrics := httpapi.NewMetrics(pool)
 	eventsHandler := httpapi.NewEventsHandler(
-		events.Ingest,
+		eventBatcher.Ingest,
 		alarmService.Ingest,
-		normalIngestConcurrency,
+		normalIngestCapacity,
 		fallIngestConcurrency,
 		cfg.IngestDeadline,
 		time.Now,

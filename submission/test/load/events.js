@@ -12,7 +12,7 @@ const preAllocatedVUs = Number(__ENV.PRE_ALLOCATED_VUS || 500);
 const maxVUs = Number(__ENV.MAX_VUS || 10000);
 const baselineOnly = __ENV.BASELINE_ONLY === '1';
 
-if (deviceCount < 1 || baselineRate < 1 || extraBurstRate < 1) {
+if (deviceCount < 1 || baselineRate < 1 || (!baselineOnly && extraBurstRate < 1)) {
   throw new Error('DEVICES, BASELINE_RATE, and BURST_RATE must be positive; BURST_RATE must exceed BASELINE_RATE');
 }
 
@@ -65,7 +65,7 @@ if (!baselineOnly) {
     burst_two: {
       executor: 'constant-arrival-rate',
       exec: 'sendEvent',
-      startTime: __ENV.SECOND_BURST_START || '3m',
+      startTime: __ENV.SECOND_BURST_START || '2m',
       rate: extraBurstRate,
       timeUnit: '1s',
       duration: __ENV.BURST_DURATION || '30s',

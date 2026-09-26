@@ -46,7 +46,7 @@ curl -i -X POST http://localhost:8090/events \
 ```
 
 Expected: `202 Accepted` with status `accepted`. Repeat the identical request and expect `200 OK`
-with status `duplicate` and the same event ID.
+with status `duplicate`.
 
 Submit malformed and out-of-window events:
 

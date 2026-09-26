@@ -27,19 +27,19 @@ func TestPostEventsResponses(t *testing.T) {
 			name: "accepted",
 			body: valid,
 			ingest: func(context.Context, event.Event, time.Time) (eventstore.InsertResult, error) {
-				return eventstore.InsertResult{EventID: 41, Inserted: true}, nil
+				return eventstore.InsertResult{Inserted: true}, nil
 			},
 			wantStatus: http.StatusAccepted,
-			wantBody:   `{"status":"accepted","event_id":41}`,
+			wantBody:   `{"status":"accepted"}`,
 		},
 		{
 			name: "duplicate",
 			body: valid,
 			ingest: func(context.Context, event.Event, time.Time) (eventstore.InsertResult, error) {
-				return eventstore.InsertResult{EventID: 41}, nil
+				return eventstore.InsertResult{}, nil
 			},
 			wantStatus: http.StatusOK,
-			wantBody:   `{"status":"duplicate","event_id":41}`,
+			wantBody:   `{"status":"duplicate"}`,
 		},
 		{
 			name:       "malformed",
@@ -94,7 +94,7 @@ func TestPostFallUsesAlarmIngest(t *testing.T) {
 		if input.Type != event.TypeFallWarn || !receivedAt.Equal(now) {
 			t.Fatalf("alarm ingest called with %#v at %s", input, receivedAt)
 		}
-		return eventstore.InsertResult{EventID: 42, Inserted: true}, nil
+		return eventstore.InsertResult{Inserted: true}, nil
 	}
 	handler := NewEventsHandler(normalIngest, alarmIngest, 1, 1, time.Second, func() time.Time { return now })
 	request := httptest.NewRequest(

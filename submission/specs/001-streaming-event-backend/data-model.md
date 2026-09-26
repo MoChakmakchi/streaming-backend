@@ -97,12 +97,12 @@ Event 1 ─── 0..1 Logical Alarm source
 ### Non-fall ingest
 
 Insert the event with `ON CONFLICT (device_id, seq) DO NOTHING` and commit before acknowledgement.
-A duplicate returns the existing event identity.
+A duplicate returns a duplicate acknowledgement without another database lookup.
 
 ### Fall ingest
 
 1. Begin transaction and take the room advisory lock.
-2. Insert the raw event, returning the existing identity for an ingestion retry.
+2. Insert the raw event, treating an ingestion retry as a duplicate.
 3. For a new event, check the three-second window anchored to each existing alarm's source warning.
 4. Insert an alarm only when no logical alarm matches.
 5. Commit, signal live publication when an alarm was created, then acknowledge.

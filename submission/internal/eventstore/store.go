@@ -12,8 +12,18 @@ import (
 	"teton/internal/event"
 )
 
+const insertEventSQL = `
+	INSERT INTO events (device_id, room_id, event_type, event_time, seq, payload, received_at)
+	VALUES ($1, $2, $3, $4, $5, $6, $7)
+	ON CONFLICT (device_id, seq) DO NOTHING
+	RETURNING id`
+
 type Store struct {
 	pool *pgxpool.Pool
+}
+
+type queryRower interface {
+	QueryRow(context.Context, string, ...any) pgx.Row
 }
 
 type InsertResult struct {
@@ -30,25 +40,12 @@ func (s *Store) Ingest(
 	input event.Event,
 	receivedAt time.Time,
 ) (InsertResult, error) {
-	tx, err := s.pool.Begin(ctx)
-	if err != nil {
-		return InsertResult{}, fmt.Errorf("begin ingest transaction: %w", err)
-	}
-	defer tx.Rollback(ctx)
-
-	result, err := Insert(ctx, tx, input, receivedAt)
-	if err != nil {
-		return InsertResult{}, err
-	}
-	if err := tx.Commit(ctx); err != nil {
-		return InsertResult{}, fmt.Errorf("commit ingest transaction: %w", err)
-	}
-	return result, nil
+	return Insert(ctx, s.pool, input, receivedAt)
 }
 
 func Insert(
 	ctx context.Context,
-	tx pgx.Tx,
+	db queryRower,
 	input event.Event,
 	receivedAt time.Time,
 ) (InsertResult, error) {
@@ -58,11 +55,7 @@ func Insert(
 	}
 
 	var eventID int64
-	err = tx.QueryRow(ctx, `
-		INSERT INTO events (device_id, room_id, event_type, event_time, seq, payload, received_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
-		ON CONFLICT (device_id, seq) DO NOTHING
-		RETURNING id`,
+	err = db.QueryRow(ctx, insertEventSQL,
 		input.DeviceID, input.RoomID, input.Type, input.Time, input.Sequence, payload, receivedAt,
 	).Scan(&eventID)
 	if err == nil {
@@ -71,11 +64,5 @@ func Insert(
 	if !errors.Is(err, pgx.ErrNoRows) {
 		return InsertResult{}, fmt.Errorf("insert event: %w", err)
 	}
-	if err := tx.QueryRow(ctx,
-		`SELECT id FROM events WHERE device_id = $1 AND seq = $2`,
-		input.DeviceID, input.Sequence,
-	).Scan(&eventID); err != nil {
-		return InsertResult{}, fmt.Errorf("read duplicate event: %w", err)
-	}
-	return InsertResult{EventID: eventID}, nil
+	return InsertResult{}, nil
 }

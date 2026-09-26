@@ -28,17 +28,22 @@ make test-load
 ```
 
 The target runs k6 locally so the load generator does not consume the Docker Desktop resources
-allocated to the API and PostgreSQL. k6 is test tooling and is not part of the application stack.
+allocated to the API and PostgreSQL. This path traverses Docker Desktop's published-port forwarding,
+which local comparison showed can limit measured throughput. Capacity investigation can instead run
+k6 on the Compose network, but those results also include contention because the generator then
+shares Docker's CPU and memory with the API and PostgreSQL. Neither setup replaces an independent
+load generator for a production capacity claim. k6 remains test tooling rather than part of the
+application stack.
 
-Run the probe in another terminal. The default k6 scenario begins its first burst after two
-minutes, so this places the probe inside that burst:
+Run the probe in another terminal. The default k6 scenario begins its first burst after one minute,
+so this places the probe inside that burst:
 
 ```bash
 cd submission
-make test-probe PROBE_DELAY=120
+make test-probe PROBE_DELAY=65
 ```
 
-The full k6 scenario is five minutes at 5,000 events/second with two additional 45,000-events/second
+The full k6 scenario is three minutes at 5,000 events/second with two additional 45,000-events/second
 streams lasting 30 seconds. k6 reports accepted, duplicate, overloaded, unexpected, and dropped
 work separately.
 
@@ -61,11 +66,18 @@ make test-evaluator
 - [ ] `make test-integration` — result: pending
 - [ ] `make test-race` — result: pending
 - [ ] Supplied smoke, offline, burst, and adversarial scenarios on a fresh database — result: pending
-- [ ] Full k6 run reached the requested arrival rates; accepted, `503`, error, and dropped-iteration counts recorded — result: pending
+- [x] Full k6 run attempted the requested arrival rates — result: 890,008 accepted, no `503`
+  responses, 2,724 request timeouts, and 1,129,478 dropped iterations; the test environment did not
+  deliver the requested 50,000-events/second bursts
 - [x] Standalone deterministic probe — result: passed; alarm delivery p95 19.341 ms
 - [ ] Probe passed during a burst; alarm delivery p95 recorded — result: pending
 - [x] `make test-restart` preserved health, occupancy, and one logical alarm without duplicate events — result: passed; 3 events, 1 alarm
 - [ ] `/metrics` showed event outcomes, latency summaries, concurrency, and PostgreSQL pool pressure — result: pending
+
+The highest verified durable rate was approximately 14,500 events per second with k6 on a second
+machine, the API running natively, and PostgreSQL in Docker. A minimal HTTP server with no validation
+or persistence reached approximately the same limit, so the application's upper ceiling could not
+be measured with the available load-generation and network environment.
 
 Keep recorded results brief: pass/fail, the k6 achieved rate and error counts, alarm p95, and any
 observed saturation point are sufficient.

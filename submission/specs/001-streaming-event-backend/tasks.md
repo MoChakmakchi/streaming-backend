@@ -54,7 +54,7 @@ the preceding stage.
 
 - [X] T008 [US1] Create the single idempotent application schema with events, alarms, required constraints, and focused indexes in `submission/migrations/001_initial.sql`
 - [X] T009 [US1] Implement the six event variants, strict JSON decoding inputs, field validation, and timestamp-window validation in `submission/internal/event/model.go`
-- [X] T010 [US1] Implement append-only transactional insertion, duplicate lookup, and event reads in `submission/internal/eventstore/store.go`
+- [X] T010 [US1] Implement append-only transactional insertion, duplicate handling, and event reads in `submission/internal/eventstore/store.go`
 - [X] T011 [US1] Implement the transaction-bound ingestion operation in `submission/internal/eventstore/store.go`
 - [X] T012 [US1] Implement bounded POST `/events` ingestion with commit-before-acknowledgement, duplicate receipts, validation errors, and `503 Retry-After` in `submission/internal/httpapi/events.go` and register it in `submission/internal/httpapi/server.go`
 - [X] T013 [US1] Wire configuration, pgx, HTTP lifecycle, and graceful API shutdown in `submission/cmd/api/main.go`
@@ -147,18 +147,18 @@ the preceding stage.
 
 ### Focused tests
 
-- [ ] T042 [P] [US4] Add saturation and retry-storm tests proving bounded admission, explicit `503 Retry-After`, and no false acknowledgement in `submission/internal/httpapi/backpressure_test.go`
-- [ ] T043 [P] [US4] Add failure-boundary checks for API commit-before-response, alarm commit-before-publication, persistent event history, and migration compatibility across restart in `submission/test/load/restart.sh`
+- [X] T042 [P] [US4] Add focused saturation and retry-after-capacity tests proving bounded admission, explicit `503 Retry-After`, and no false acknowledgement in `submission/internal/httpapi/backpressure_test.go`
+- [X] T043 [P] [US4] Cover commit-before-response, alarm commit-before-publication, persistent event history, and migration compatibility in `submission/internal/eventstore/store_test.go`, `submission/internal/features/alarms/service_test.go`, and `submission/test/load/restart.sh`
 
 ### Implementation and verification
 
-- [ ] T044 [US4] Verify health and occupancy are immediately reconstructed from committed event history after restart in `submission/test/load/restart.sh`
-- [ ] T045 [US4] Tune the API pgx pool, request admission, and ingest deadlines through `submission/internal/config/config.go` and `submission/cmd/api/main.go`
-- [ ] T046 [P] [US4] Implement the required counters, latency summaries, and saturation reporting in the owning packages, with HTTP export in `submission/internal/httpapi/metrics.go`; add shared metric plumbing only if the implementation requires it
-- [ ] T047 [US4] Add structured ingest, query, alarm, and shutdown instrumentation in `submission/internal/httpapi/events.go`, the health and occupancy packages, and `submission/internal/features/alarms/service.go`
-- [ ] T048 [P] [US4] Implement a five-minute 5,000-events/second baseline and two 30-second 50,000-events/second bursts, then verify alarm latency and health and occupancy results against accepted-event ground truth in `submission/test/load/main.go`
-- [ ] T049 [P] [US4] Implement the hard-kill, restart-order, persistent-volume, and query-recovery scenario in `submission/test/load/restart.sh`
-- [ ] T050 [US4] Add final integration, race, load, restart, and evaluator targets to `submission/Makefile`
+- [X] T044 [US4] Verify health and occupancy are immediately reconstructed from committed event history after restart in `submission/test/load/restart.sh`
+- [X] T045 [US4] Tune the pgx pool, bounded batch ingestion, request admission, ingest deadline, and local PostgreSQL WAL behavior in `submission/internal/config/config.go`, `submission/internal/eventstore/batcher.go`, `submission/cmd/api/main.go`, and `submission/deployment/compose.yaml`
+- [X] T046 [P] [US4] Implement event counters, latency summaries, HTTP concurrency, and PostgreSQL pool reporting in `submission/internal/httpapi/metrics.go`
+- [X] T047 [US4] Add structured lifecycle, request, ingest-error, query-error, alarm, and shutdown logging in `submission/cmd/api/main.go`, `submission/internal/httpapi/`, and `submission/internal/features/alarms/`
+- [X] T048 [P] [US4] Implement the 5,000-events/second baseline and two additional 45,000-events/second burst streams in `submission/test/load/events.js`, with deterministic aggregation and alarm verification in `submission/test/load/verify.py`
+- [X] T049 [P] [US4] Implement the hard-kill, migration-reapply, persistent-volume, duplicate-retry, and query-recovery scenario in `submission/test/load/restart.sh`
+- [X] T050 [US4] Add final integration, race, load, probe, restart, and evaluator targets to `submission/Makefile`
 - [ ] T051 [US4] Run the automated Stage 5 targets from `submission/Makefile`, including ingestion and query verification for a 5,001st device, then prepare the metrics and recovery results for user review
 
 **Checkpoint**: All four user stories meet the assignment's correctness and performance conditions.

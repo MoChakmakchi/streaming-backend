@@ -75,7 +75,14 @@ func (h *eventsHandler) ServeHTTP(response http.ResponseWriter, request *http.Re
 	defer cancel()
 	result, err := ingest(ctx, input, receivedAt)
 	if err != nil {
-		slog.ErrorContext(ctx, "ingest event",
+		level := slog.LevelError
+		if errors.Is(err, context.Canceled) ||
+			errors.Is(err, context.DeadlineExceeded) ||
+			errors.Is(err, eventstore.ErrBatcherFull) ||
+			errors.Is(err, eventstore.ErrBatcherClosed) {
+			level = slog.LevelDebug
+		}
+		slog.Log(ctx, level, "ingest event",
 			"error", err,
 			"device_id", input.DeviceID,
 			"event_type", input.Type,
@@ -91,9 +98,8 @@ func (h *eventsHandler) ServeHTTP(response http.ResponseWriter, request *http.Re
 		statusCode = http.StatusOK
 	}
 	writeJSON(response, statusCode, struct {
-		Status  string `json:"status"`
-		EventID int64  `json:"event_id"`
-	}{Status: status, EventID: result.EventID})
+		Status string `json:"status"`
+	}{Status: status})
 }
 
 func writeUnavailable(response http.ResponseWriter) {

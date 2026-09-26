@@ -96,12 +96,12 @@ func TestOccupancyQuery(t *testing.T) {
 		presence(prefix+"_base", correctionRoom, queryTime.Add(-30*time.Minute), 2, false),
 	}
 	ingest(baseEvents[0])
-	baseResult := ingest(baseEvents[1])
+	ingest(baseEvents[1])
 	assertOccupancy(correctionRoom, time.Hour, false, 20.0/60.0)
 
 	retry := ingest(baseEvents[1])
-	if retry.Inserted || retry.EventID != baseResult.EventID {
-		t.Fatalf("retry result = %#v, want existing event %d", retry, baseResult.EventID)
+	if retry.Inserted {
+		t.Fatalf("retry result = %#v, want duplicate", retry)
 	}
 
 	lateEvents := []event.Event{

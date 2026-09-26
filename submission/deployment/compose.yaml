@@ -1,7 +1,7 @@
 services:
   postgres:
     image: postgres:18
-    command: ["postgres", "-c", "commit_delay=200", "-c", "commit_siblings=5"]
+    command: ["postgres", "-c", "track_io_timing=on", "-c", "track_wal_io_timing=on", "-c", "wal_init_zero=off"]
     environment:
       POSTGRES_DB: teton
       POSTGRES_USER: teton

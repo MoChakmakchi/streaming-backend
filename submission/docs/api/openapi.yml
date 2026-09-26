@@ -304,14 +304,11 @@ components:
 
     EventReceipt:
       type: object
-      required: [status, event_id]
+      required: [status]
       properties:
         status:
           type: string
           enum: [accepted, duplicate]
-        event_id:
-          type: integer
-          format: int64
       additionalProperties: false
 
     DeviceHealth:
